@@ -445,7 +445,7 @@
     font-size:.65rem;
     padding:.05rem .4rem;
   }
-  textarea.body{
+  .body{
     flex:1;
     margin:0;
     padding:1.2rem;
@@ -455,64 +455,79 @@
     font-family:inherit;
     font-size:.95rem;
     line-height:1.6;
-    resize:none;
     outline:none;
-  }
-  /* markdown preview */
-  .md-view{
-    flex:1;
     overflow-y:auto;
-    padding:1.2rem;
-    font-size:.95rem;
-    line-height:1.6;
-    color:var(--text);
-    scrollbar-width:thin;
-    scrollbar-color:var(--line) transparent;
+    white-space:pre-wrap;
+    word-wrap:break-word;
+    cursor:text;
   }
-  .md-view::-webkit-scrollbar{ width:8px; }
-  .md-view::-webkit-scrollbar-track{ background:transparent; }
-  .md-view::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
-  .md-view h1, .md-view h2, .md-view h3, .md-view h4, .md-view h5, .md-view h6{
-    margin:1.1em 0 .45em;
+  .body.is-empty::before{
+    content:attr(data-placeholder);
+    color:var(--text-dim);
+    pointer-events:none;
+  }
+  /* live markdown styling */
+  .body .lm-mark{ display:none; color:var(--text-dim); opacity:.65; }
+  .body .lm-line.lm-line-active .lm-mark{ display:inline; }
+  .body .lm-h1, .body .lm-h2, .body .lm-h3, .body .lm-h4, .body .lm-h5, .body .lm-h6{
     font-weight:600;
     line-height:1.3;
   }
-  .md-view h1:first-child, .md-view h2:first-child, .md-view h3:first-child{ margin-top:0; }
-  .md-view h1{ font-size:1.45rem; border-bottom:1px solid var(--line); padding-bottom:.25em; }
-  .md-view h2{ font-size:1.25rem; }
-  .md-view h3{ font-size:1.1rem; }
-  .md-view h4{ font-size:1rem; }
-  .md-view h5, .md-view h6{ font-size:.9rem; color:var(--text-dim); }
-  .md-view p{ margin:0 0 .8em; }
-  .md-view a{ color:var(--accent); }
-  .md-view code{
+  .body .lm-h1{ font-size:1.45rem; }
+  .body .lm-h2{ font-size:1.25rem; }
+  .body .lm-h3{ font-size:1.1rem; }
+  .body .lm-h4{ font-size:1rem; }
+  .body .lm-h5, .body .lm-h6{ font-size:.9rem; color:var(--text-dim); }
+  .body code{
     font-family:ui-monospace, 'Cascadia Code', Consolas, monospace;
     font-size:.85em;
     background:var(--panel-2);
-    border:1px solid var(--line);
     border-radius:3px;
-    padding:.08em .35em;
+    padding:.08em .3em;
+    -webkit-box-decoration-break:clone;
+    box-decoration-break:clone;
   }
-  .md-view pre{
+  .body .lm-code-block{
+    display:inline;
+    font-family:ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size:.9em;
     background:var(--panel-2);
-    border:1px solid var(--line);
-    border-radius:4px;
-    padding:.8em 1em;
-    overflow-x:auto;
-    margin:0 0 .8em;
+    padding:0 1em;
+    -webkit-box-decoration-break:clone;
+    box-decoration-break:clone;
   }
-  .md-view pre code{ background:none; border:none; padding:0; font-size:.85rem; }
-  .md-view blockquote{
-    margin:0 0 .8em;
-    padding:.15em 0 .15em .9em;
-    border-left:3px solid var(--accent);
+  .body .lm-fence{
+    display:inline-block;
+    min-width:2em;
+    min-height:1.1em;
     color:var(--text-dim);
   }
-  .md-view ul, .md-view ol{ margin:0 0 .8em; padding-left:1.5em; }
-  .md-view li{ margin-bottom:.25em; }
-  .md-view hr{ border:none; border-top:1px solid var(--line); margin:1.2em 0; }
-  .md-view del{ opacity:.6; }
-  .md-view input[type="checkbox"]{ margin-right:.4em; accent-color:var(--accent); }
+  .body .lm-quote{
+    display:inline;
+    color:var(--text-dim);
+    border-left:3px solid var(--accent);
+    padding:0 0 0 .7em;
+    -webkit-box-decoration-break:clone;
+    box-decoration-break:clone;
+  }
+  .body .lm-hr{
+    display:inline-block;
+    width:100%;
+    min-height:.7em;
+    color:var(--text-dim);
+    border-bottom:1px solid var(--line);
+  }
+  .body .lm-bullet, .body .lm-task-box{
+    display:inline-block;
+    width:1.2em;
+  }
+  .body .lm-line.lm-line-active .lm-bullet, .body .lm-line.lm-line-active .lm-task-box{ display:none; }
+  .body .lm-bullet::before{ content:'•'; }
+  .body .lm-task-box::before{ content:'☐'; color:var(--text-dim); }
+  .body .lm-task-box.lm-task-checked::before{ content:'☑'; color:var(--accent); }
+  .body .lm-ol-mark{ color:var(--text-dim); }
+  .body del{ opacity:.6; }
+  .body a{ color:var(--accent); }
 
   /* slash command menu */
   .editor-panel{ position:relative; }
@@ -982,7 +997,7 @@
 
 <script>
 (() => {
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = 'x.x.x';
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1078,7 +1093,6 @@
   let filter = '';
   let imageFilter = false;
   let view = 'active';
-  let mdPreview = false;
 
   function uid(){
     return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -1302,16 +1316,7 @@
       renderIndex();
     });
 
-    const previewBtn = document.createElement('button');
-    previewBtn.className = 'pin-toggle' + (mdPreview ? ' on' : '');
-    previewBtn.textContent = mdPreview ? 'edit' : 'preview';
-    previewBtn.title = 'toggle markdown preview';
-    previewBtn.addEventListener('click', () => {
-      mdPreview = !mdPreview;
-      renderEditor();
-    });
-
-    header.append(titleInput, folderSelect, previewBtn, pinBtn);
+    header.append(titleInput, folderSelect, pinBtn);
 
     if (n.status === 'trashed'){
       const restoreBtn = document.createElement('button');
@@ -1398,10 +1403,22 @@
     meta.className = 'editor-meta';
     meta.textContent = 'last edited ' + fmtDate(n.updated);
 
-    const body = document.createElement('textarea');
+    const body = document.createElement('div');
     body.className = 'body';
-    body.placeholder = 'write something…';
-    body.value = n.body;
+    body.contentEditable = 'true';
+    body.spellcheck = false;
+    body.dataset.placeholder = 'write something…';
+    body.innerHTML = renderBodyHTML(n.body);
+    body.classList.toggle('is-empty', !n.body);
+
+    function updateActiveLine(){
+      const idx = n.body.slice(0, getCaretOffset(body)).split('\n').length - 1;
+      const prev = body.querySelector('.lm-line-active');
+      if (prev) prev.classList.remove('lm-line-active');
+      const cur = body.querySelector('.lm-line[data-line="' + idx + '"]');
+      if (cur) cur.classList.add('lm-line-active');
+    }
+    updateActiveLine();
 
     let debounce;
     function scheduleSave(){
@@ -1416,7 +1433,63 @@
     }
     titleInput.addEventListener('input', () => { n.title = titleInput.value; scheduleSave(); });
     titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); body.focus(); } });
-    body.addEventListener('input', () => { n.body = body.value; scheduleSave(); slashUpdate(); });
+
+    let composing = false;
+    function applyBodyEdit(caretPos){
+      body.innerHTML = renderBodyHTML(n.body);
+      body.classList.toggle('is-empty', !n.body);
+      setCaretOffset(body, caretPos);
+      updateActiveLine();
+      scheduleSave();
+      slashUpdate();
+    }
+    function refreshBody(){
+      applyBodyEdit(getCaretOffset(body));
+    }
+    function insertTextAtCaret(text){
+      const pos = getCaretOffset(body);
+      n.body = n.body.slice(0, pos) + text + n.body.slice(pos);
+      applyBodyEdit(pos + text.length);
+    }
+    function handleEnterKey(){
+      const pos = getCaretOffset(body);
+      const lineStart = n.body.lastIndexOf('\n', pos - 1) + 1;
+      let lineEnd = n.body.indexOf('\n', pos);
+      if (lineEnd === -1) lineEnd = n.body.length;
+      const lineText = n.body.slice(lineStart, lineEnd);
+
+      const taskM = lineText.match(/^(\s*[-*]\s+)\[[ xX]\](\s+)(.*)$/);
+      const ulM = !taskM && lineText.match(/^(\s*[-*]\s+)(.*)$/);
+      const olM = !taskM && !ulM && lineText.match(/^(\s*)(\d+)(\.\s+)(.*)$/);
+
+      let content = null;
+      if (taskM) content = taskM[3];
+      else if (ulM) content = ulM[2];
+      else if (olM) content = olM[4];
+
+      if (content !== null && content.trim() === ''){
+        // empty list item: pressing Enter again clears the marker instead of continuing the list
+        n.body = n.body.slice(0, lineStart) + n.body.slice(lineEnd);
+        applyBodyEdit(lineStart);
+        return;
+      }
+
+      let continuation = '';
+      if (taskM) continuation = taskM[1] + '[ ]' + taskM[2];
+      else if (ulM) continuation = ulM[1];
+      else if (olM) continuation = olM[1] + (parseInt(olM[2], 10) + 1) + olM[3];
+      insertTextAtCaret('\n' + continuation);
+    }
+    body.addEventListener('compositionstart', () => { composing = true; });
+    body.addEventListener('compositionend', () => { composing = false; n.body = nodeToPlainText(body); refreshBody(); });
+    body.addEventListener('keyup', updateActiveLine);
+    body.addEventListener('mouseup', updateActiveLine);
+    body.addEventListener('focus', updateActiveLine);
+    body.addEventListener('input', () => {
+      n.body = nodeToPlainText(body);
+      if (composing){ scheduleSave(); return; }
+      refreshBody();
+    });
 
     /* slash command menu */
     const SLASH_ITEMS = [
@@ -1443,21 +1516,23 @@
     }
 
     function slashMatches(){
-      const q = body.value.slice(slashStart + 1, body.selectionStart).toLowerCase();
+      const q = n.body.slice(slashStart + 1, getCaretOffset(body)).toLowerCase();
       return SLASH_ITEMS.filter(it => it.label.replace(/\s/g, '').includes(q.replace(/\s/g, '')));
     }
 
     function slashInsert(item){
-      const before = body.value.slice(0, slashStart);
-      const after = body.value.slice(body.selectionStart);
+      const pos = getCaretOffset(body);
+      const before = n.body.slice(0, slashStart);
+      const after = n.body.slice(pos);
       const caretMark = item.insert.indexOf('$');
       const snippet = item.insert.replace('$', '');
-      body.value = before + snippet + after;
-      const pos = before.length + caretMark;
-      body.setSelectionRange(pos, pos);
+      n.body = before + snippet + after;
+      body.innerHTML = renderBodyHTML(n.body);
+      body.classList.toggle('is-empty', !n.body);
+      setCaretOffset(body, before.length + caretMark);
+      updateActiveLine();
       slashClose();
       body.focus();
-      n.body = body.value;
       scheduleSave();
     }
 
@@ -1485,35 +1560,24 @@
     }
 
     function caretCoords(){
-      const mirror = document.createElement('div');
-      const cs = getComputedStyle(body);
-      for (const prop of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','padding','border','boxSizing','whiteSpace','wordWrap','overflowWrap'])
-        mirror.style[prop] = cs[prop];
-      mirror.style.position = 'absolute';
-      mirror.style.visibility = 'hidden';
-      mirror.style.whiteSpace = 'pre-wrap';
-      mirror.style.width = body.clientWidth + 'px';
-      mirror.textContent = body.value.slice(0, body.selectionStart);
-      const marker = document.createElement('span');
-      marker.textContent = '​';
-      mirror.append(marker);
-      document.body.append(mirror);
-      const top = marker.offsetTop - body.scrollTop;
-      const left = marker.offsetLeft;
-      mirror.remove();
-      return { top, left };
+      const sel = window.getSelection();
+      if (!sel.rangeCount || !body.contains(sel.getRangeAt(0).startContainer)) return { top:0, left:0 };
+      const range = sel.getRangeAt(0).cloneRange();
+      range.collapse(true);
+      const rect = range.getBoundingClientRect();
+      const panelRect = editorPanel.getBoundingClientRect();
+      return { top: rect.top - panelRect.top, bottom: rect.bottom - panelRect.top, left: rect.left - panelRect.left };
     }
 
     function slashOpen(){
-      slashStart = body.selectionStart - 1;
+      slashStart = getCaretOffset(body) - 1;
       slashSel = 0;
       slashMenu = document.createElement('div');
       slashMenu.className = 'slash-menu';
       const c = caretCoords();
       const panelRect = editorPanel.getBoundingClientRect();
-      const taRect = body.getBoundingClientRect();
-      let top = taRect.top - panelRect.top + c.top + 24;
-      let left = Math.min(taRect.left - panelRect.left + c.left, panelRect.width - 240);
+      let top = c.bottom + 4;
+      let left = Math.min(c.left, panelRect.width - 240);
       slashMenu.style.top = top + 'px';
       slashMenu.style.left = Math.max(8, left) + 'px';
       editorPanel.append(slashMenu);
@@ -1521,17 +1585,17 @@
       // flip above the caret if the menu would overflow the panel bottom
       const mh = slashMenu.offsetHeight;
       if (top + mh > panelRect.height - 8){
-        slashMenu.style.top = Math.max(8, taRect.top - panelRect.top + c.top - mh - 6) + 'px';
+        slashMenu.style.top = Math.max(8, c.top - mh - 6) + 'px';
       }
     }
 
     function slashUpdate(){
-      const pos = body.selectionStart;
-      const before = body.value.slice(0, pos);
+      const pos = getCaretOffset(body);
+      const before = n.body.slice(0, pos);
       if (slashMenu){
         // close if the "/" was deleted or we moved past a space / newline
-        const seg = body.value.slice(slashStart, pos);
-        if (slashStart >= body.value.length || body.value[slashStart] !== '/' || pos <= slashStart || /[\s]/.test(seg.slice(1))){
+        const seg = n.body.slice(slashStart, pos);
+        if (slashStart >= n.body.length || n.body[slashStart] !== '/' || pos <= slashStart || /[\s]/.test(seg.slice(1))){
           slashClose();
         } else {
           slashRender();
@@ -1548,12 +1612,14 @@
     }
 
     body.addEventListener('keydown', (e) => {
-      if (!slashMenu) return;
-      const items = slashMatches();
-      if (e.key === 'ArrowDown'){ e.preventDefault(); slashSel = Math.min(slashSel + 1, items.length - 1); slashRender(); }
-      else if (e.key === 'ArrowUp'){ e.preventDefault(); slashSel = Math.max(slashSel - 1, 0); slashRender(); }
-      else if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); }
-      else if (e.key === 'Escape'){ e.preventDefault(); slashClose(); }
+      if (slashMenu){
+        const items = slashMatches();
+        if (e.key === 'ArrowDown'){ e.preventDefault(); slashSel = Math.min(slashSel + 1, items.length - 1); slashRender(); return; }
+        if (e.key === 'ArrowUp'){ e.preventDefault(); slashSel = Math.max(slashSel - 1, 0); slashRender(); return; }
+        if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
+        if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
+      }
+      if (e.key === 'Enter'){ e.preventDefault(); handleEnterKey(); }
     });
     body.addEventListener('blur', () => setTimeout(slashClose, 150));
     body.addEventListener('click', () => { if (slashMenu) slashUpdate(); });
@@ -1593,8 +1659,10 @@
 
     body.addEventListener('paste', (e) => {
       const items = e.clipboardData.items;
+      let hasImage = false;
       for (const item of items){
         if (item.type.startsWith('image/')){
+          hasImage = true;
           e.preventDefault();
           const file = item.getAsFile();
           if (!file) continue;
@@ -1608,17 +1676,14 @@
           reader.readAsDataURL(file);
         }
       }
+      if (!hasImage){
+        e.preventDefault();
+        insertTextAtCaret(e.clipboardData.getData('text/plain'));
+      }
     });
 
-    if (mdPreview){
-      const mdView = document.createElement('div');
-      mdView.className = 'md-view';
-      mdView.innerHTML = mdRender(n.body) || '<p style="color:var(--text-dim)">nothing to preview yet — write some markdown first</p>';
-      editorPanel.append(header, tagsRow, meta, mdView, imagesContainer);
-    } else {
-      editorPanel.append(header, tagsRow, meta, body, imagesContainer);
-      body.focus();
-    }
+    editorPanel.append(header, tagsRow, meta, body, imagesContainer);
+    body.focus();
   }
 
   document.getElementById('addBtn').addEventListener('click', () => {
@@ -1673,6 +1738,18 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: 'x.x.x',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Notes now render live markdown as you type, instead of a separate edit/preview toggle',
+              'Markdown syntax (bold, headings, quotes, links, code fences, etc.) stays hidden until you put the cursor on that line',
+            ],
+          },
+        ],
+      },
       {
         label: '1.0.0',
         sections: [
@@ -1904,65 +1981,128 @@
   function mdEscape(s){
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  function mdInline(s){
-    // protect inline code spans first
-    const codes = [];
-    s = s.replace(/`([^`]+)`/g, (m, c) => { codes.push(c); return '\x00' + (codes.length - 1) + '\x00'; });
-    s = s
-      .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      .replace(/~~([^~]+)~~/g, '<del>$1</del>')
-      .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, url) =>
-        /^https?:\/\//i.test(url) ? `<a href="${url}" target="_blank" rel="noopener">${label}</a>` : m);
-    return s.replace(/\x00(\d+)\x00/g, (m, i) => '<code>' + codes[+i] + '</code>');
+
+  /* ---------- live inline markdown rendering (WYSIWYG-ish note body) ---------- */
+  function lmInline(s){
+    const store = [];
+    const put = (html) => { store.push(html); return '\x00' + (store.length - 1) + '\x00'; };
+    s = s.replace(/`([^`]+)`/g, (m, c) =>
+      put('<span class="lm-mark">`</span><code>' + c + '</code><span class="lm-mark">`</span>'));
+    s = s.replace(/\*\*\*([^*]+)\*\*\*/g, (m, c) =>
+      put('<span class="lm-mark">***</span><strong><em>' + c + '</em></strong><span class="lm-mark">***</span>'));
+    s = s.replace(/\*\*([^*]+)\*\*/g, (m, c) =>
+      put('<span class="lm-mark">**</span><strong>' + c + '</strong><span class="lm-mark">**</span>'));
+    s = s.replace(/\*([^*]+)\*/g, (m, c) =>
+      put('<span class="lm-mark">*</span><em>' + c + '</em><span class="lm-mark">*</span>'));
+    s = s.replace(/~~([^~]+)~~/g, (m, c) =>
+      put('<span class="lm-mark">~~</span><del>' + c + '</del><span class="lm-mark">~~</span>'));
+    s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, label, url) =>
+      /^https?:\/\//i.test(url)
+        ? put(`<span class="lm-mark">[</span>${label}<span class="lm-mark">](<a href="${url}" target="_blank" rel="noopener">${url}</a>)</span>`)
+        : m);
+    return s.replace(/\x00(\d+)\x00/g, (m, i) => store[+i]);
   }
-  function mdRender(text){
-    const lines = mdEscape(text).split('\n');
-    let html = '', inCode = false, inList = null, inQuote = false, para = [];
-    const closePara = () => { if (para.length){ html += '<p>' + para.map(mdInline).join('<br>') + '</p>'; para = []; } };
-    const closeList = () => { if (inList){ html += '</' + inList + '>'; inList = null; } };
-    const closeQuote = () => { if (inQuote){ html += '</blockquote>'; inQuote = false; } };
-    for (const line of lines){
-      if (line.trim().startsWith('```')){
-        closePara(); closeList(); closeQuote();
-        html += inCode ? '</code></pre>' : '<pre><code>';
-        inCode = !inCode;
-        continue;
-      }
-      if (inCode){ html += line + '\n'; continue; }
 
-      const h = line.match(/^(#{1,6})\s+(.*)/);
-      if (h){ closePara(); closeList(); closeQuote(); html += `<h${h[1].length}>` + mdInline(h[2]) + `</h${h[1].length}>`; continue; }
-
-      if (/^\s*(---+|\*\*\*+)\s*$/.test(line)){ closePara(); closeList(); closeQuote(); html += '<hr>'; continue; }
-
-      const q = line.match(/^&gt;\s?(.*)/);
-      if (q){ closePara(); closeList(); if (!inQuote){ html += '<blockquote>'; inQuote = true; } html += mdInline(q[1]) + '<br>'; continue; }
-      closeQuote();
-
-      const task = line.match(/^\s*[-*]\s+\[([ xX])\]\s+(.*)/);
-      const ul = line.match(/^\s*[-*]\s+(.*)/);
-      const ol = line.match(/^\s*\d+\.\s+(.*)/);
-      if (task || ul || ol){
-        closePara();
-        const want = ol ? 'ol' : 'ul';
-        if (inList !== want){ closeList(); html += '<' + want + '>'; inList = want; }
-        if (task){
-          html += '<li><input type="checkbox" disabled' + (task[1] !== ' ' ? ' checked' : '') + '>' + mdInline(task[2]) + '</li>';
-        } else {
-          html += '<li>' + mdInline((ul || ol)[1]) + '</li>';
-        }
-        continue;
-      }
-      closeList();
-
-      if (!line.trim()){ closePara(); continue; }
-      para.push(line);
+  function lmRenderLine(line, state){
+    const fence = line.trim().match(/^```/);
+    if (fence){
+      state.inCode = !state.inCode;
+      return '<span class="lm-code-block lm-fence"><span class="lm-mark">' + line + '</span></span>';
     }
-    if (inCode) html += '</code></pre>';
-    closePara(); closeList(); closeQuote();
-    return html;
+    if (state.inCode) return '<span class="lm-code-block">' + (line || '​') + '</span>';
+
+    const h = line.match(/^(#{1,6})(\s+)(.*)/);
+    if (h) return `<span class="lm-mark">${h[1]}${h[2]}</span><span class="lm-h${h[1].length}">${lmInline(h[3])}</span>`;
+
+    if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) return '<span class="lm-hr"><span class="lm-mark">' + line + '</span></span>';
+
+    const q = line.match(/^(&gt;\s?)(.*)/);
+    if (q) return `<span class="lm-quote"><span class="lm-mark">${q[1]}</span>${lmInline(q[2])}</span>`;
+
+    const task = line.match(/^(\s*[-*]\s+)(\[)([ xX])(\]\s+)(.*)/);
+    if (task){
+      const checked = task[3] !== ' ';
+      return `<span class="lm-mark">${task[1]}${task[2]}${task[3]}${task[4]}</span><span class="lm-task-box${checked ? ' lm-task-checked' : ''}"></span>${lmInline(task[5])}`;
+    }
+
+    const ul = line.match(/^(\s*[-*]\s+)(.*)/);
+    if (ul) return `<span class="lm-mark">${ul[1]}</span><span class="lm-bullet"></span>${lmInline(ul[2])}`;
+
+    const ol = line.match(/^(\s*)(\d+\.\s+)(.*)/);
+    if (ol) return `${ol[1]}<span class="lm-ol-mark">${ol[2]}</span>${lmInline(ol[3])}`;
+
+    if (!line.trim()) return '';
+    return lmInline(line);
+  }
+
+  function renderBodyHTML(text){
+    const state = { inCode: false };
+    return mdEscape(text).split('\n')
+      .map((line, i) => `<span class="lm-line" data-line="${i}">${lmRenderLine(line, state)}</span>`)
+      .join('<br>');
+  }
+
+  /* ---------- contenteditable plain-text <-> caret offset helpers ---------- */
+  function nodeToPlainText(root){
+    let out = '';
+    const walk = (node) => {
+      if (node.nodeType === Node.TEXT_NODE){ out += node.nodeValue; return; }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      if (node.tagName === 'BR'){ out += '\n'; return; }
+      node.childNodes.forEach(walk);
+    };
+    root.childNodes.forEach(walk);
+    return out.replace(/​/g, '');
+  }
+
+  function getCaretOffset(el){
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return 0;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.startContainer)) return 0;
+    const pre = range.cloneRange();
+    pre.selectNodeContents(el);
+    pre.setEnd(range.startContainer, range.startOffset);
+    return nodeToPlainText(pre.cloneContents()).length;
+  }
+
+  function setCaretOffset(el, offset){
+    let remaining = offset, result = null;
+    const walk = (node) => {
+      if (result) return;
+      if (node.nodeType === Node.TEXT_NODE){
+        const len = node.nodeValue.length;
+        if (remaining <= len){ result = { node, offset: remaining }; return; }
+        remaining -= len;
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      if (node.tagName === 'BR'){
+        if (remaining <= 0){ result = { node: node.parentNode, offset: Array.prototype.indexOf.call(node.parentNode.childNodes, node) }; return; }
+        remaining -= 1;
+        return;
+      }
+      if (!node.hasChildNodes()){
+        // an empty inline element (e.g. a blank line's wrapper span) contributes no characters.
+        // Browsers normalize a collapsed selection away from a truly empty element (snapping
+        // back to the nearest real content), so give it a real zero-width text child to anchor to.
+        if (remaining <= 0){
+          const anchor = document.createTextNode('​');
+          node.appendChild(anchor);
+          result = { node: anchor, offset: 1 };
+        }
+        return;
+      }
+      node.childNodes.forEach(walk);
+    };
+    el.childNodes.forEach(walk);
+    if (!result) result = { node: el, offset: el.childNodes.length };
+    const range = document.createRange();
+    range.setStart(result.node, result.offset);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
   function toast(msg){
