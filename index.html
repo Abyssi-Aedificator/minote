@@ -1213,7 +1213,7 @@
       title.textContent = n.title || '(untitled)';
       const snippet = document.createElement('div');
       snippet.className = 'snippet';
-      snippet.textContent = n.body.replace(/\n/g, ' ').slice(0, 60) || 'empty';
+      snippet.textContent = stripMarkdown(n.body).replace(/\s+/g, ' ').trim().slice(0, 60) || 'empty';
       info.append(title, snippet);
 
       if (n.tags && n.tags.length){
@@ -1746,6 +1746,7 @@
             items: [
               'Notes now render live markdown as you type, instead of a separate edit/preview toggle',
               'Markdown syntax (bold, headings, quotes, links, code fences, etc.) stays hidden until you put the cursor on that line',
+              'The note list preview snippet now shows plain text instead of raw markdown syntax',
             ],
           },
         ],
@@ -1980,6 +1981,26 @@
   /* ---------- tiny markdown renderer (no external deps) ---------- */
   function mdEscape(s){
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function stripMarkdown(text){
+    return text
+      .replace(/```[\s\S]*?```/g, ' ')
+      .split('\n')
+      .map(line => line
+        .replace(/^\s*#{1,6}\s+/, '')
+        .replace(/^\s*>\s?/, '')
+        .replace(/^\s*[-*]\s+\[[ xX]\]\s+/, '')
+        .replace(/^\s*[-*]\s+/, '')
+        .replace(/^\s*\d+\.\s+/, '')
+        .replace(/^\s*(---+|\*\*\*+)\s*$/, ''))
+      .join(' ')
+      .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/~~([^~]+)~~/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1');
   }
 
   /* ---------- live inline markdown rendering (WYSIWYG-ish note body) ---------- */
