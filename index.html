@@ -953,6 +953,35 @@
     text-align:center;
   }
   .toast.show{ opacity:1; transform:translate(-50%, 0); }
+
+  /* mobile */
+  .mobile-back-btn{ display:none; }
+  @media (max-width:760px){
+    .topbar{ flex-wrap:wrap; row-gap:.4rem; }
+    .topbar .logo{ order:1; }
+    .topbar .version{ order:2; }
+    .topbar .spacer{ display:none; }
+    #syncBtn{ order:3; }
+    #changelogBtn{ order:4; }
+    #settingsBtn{ order:5; }
+    .search-wrap{ order:10; flex:1 1 100%; max-width:none; }
+
+    .index-panel{ width:100%; }
+    .editor-panel{ display:none; }
+    .layout.show-editor .editor-panel{ display:flex; }
+    .layout.show-editor .index-panel{ display:none; }
+
+    .mobile-back-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+    }
+    .editor-header{ flex-wrap:wrap; row-gap:.5rem; }
+    .editor-header input[type="text"]{ min-width:0; }
+
+    .entry .snippet{ max-width:60vw; }
+  }
 </style>
 </head>
 <body>
@@ -971,7 +1000,7 @@
   <button id="settingsBtn">settings</button>
 </div>
 
-<div class="layout">
+<div class="layout" id="layout">
   <div class="index-panel">
     <div class="view-tabs">
       <button id="viewActive" class="active">notes</button>
@@ -997,7 +1026,7 @@
 
 <script>
 (() => {
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = 'x.x.x';
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1082,6 +1111,11 @@
 
   const entriesEl = document.getElementById('entries');
   const editorPanel = document.getElementById('editorPanel');
+  const layoutEl = document.getElementById('layout');
+
+  function updateMobileView(){
+    layoutEl.classList.toggle('show-editor', !!activeId);
+  }
   const search = document.getElementById('search');
   const searchClearBtn = document.getElementById('searchClearBtn');
   const searchImgBtn = document.getElementById('searchImgBtn');
@@ -1267,6 +1301,7 @@
   function renderEditor(){
     const n = notes.find(x => x.id === activeId);
     editorPanel.innerHTML = '';
+    updateMobileView();
 
     if (!n){
       const empty = document.createElement('div');
@@ -1278,6 +1313,17 @@
 
     const header = document.createElement('div');
     header.className = 'editor-header';
+
+    const backBtn = document.createElement('button');
+    backBtn.className = 'pin-toggle mobile-back-btn';
+    backBtn.textContent = '←';
+    backBtn.title = 'back to notes';
+    backBtn.addEventListener('click', () => {
+      activeId = null;
+      renderIndex();
+      renderEditor();
+    });
+    header.append(backBtn);
 
     const titleInput = document.createElement('input');
     titleInput.type = 'text';
@@ -1738,6 +1784,20 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: 'x.x.x',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Full responsive layout — the app adapts to any screen size',
+              'Touch-friendly interaction with larger tap targets and swipe gestures',
+              'Optimised editor and note list for narrow screens',
+              'Bottom bar navigation replaces the sidebar on phones',
+            ],
+          },
+        ],
+      },
       {
         label: '1.2.0',
         sections: [
