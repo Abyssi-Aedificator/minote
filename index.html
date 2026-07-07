@@ -676,45 +676,50 @@
     background:var(--accent-dim);
   }
   .changelog-panel h2{
-    margin:0 0 .3rem;
+    margin:0 0 1rem;
     font-size:1rem;
-    font-weight:500;
-    color:var(--accent);
-    letter-spacing:.05em;
-  }
-  .changelog-panel .sub{
-    color:var(--text-dim);
-    font-size:.74rem;
-    margin-bottom:1.2rem;
-  }
-  .changelog-panel h3{
-    margin:1rem 0 .4rem;
-    font-size:.85rem;
-    font-weight:500;
+    font-weight:600;
     color:var(--text);
+    letter-spacing:.04em;
+  }
+  .changelog-panel .version-label{
+    font-size:.85rem;
+    font-weight:600;
+    color:var(--accent);
+    margin:1.2rem 0 .6rem;
+    padding-bottom:.3rem;
+    border-bottom:1px solid var(--line);
+  }
+  .changelog-panel .version-label:first-of-type{ margin-top:0; }
+  .changelog-panel h3{
+    margin:.8rem 0 .35rem;
+    font-size:.74rem;
+    font-weight:600;
+    color:var(--text-dim);
     text-transform:uppercase;
-    letter-spacing:.06em;
+    letter-spacing:.08em;
   }
   .changelog-panel ul{
-    margin:0 0 .4rem;
+    margin:0 0 .6rem;
     padding-left:1.2rem;
     color:var(--text-dim);
     font-size:.82rem;
     line-height:1.6;
   }
-  .changelog-panel ul li{ margin-bottom:.15rem; }
+  .changelog-panel ul li{ margin-bottom:.2rem; }
   .changelog-panel .close-btn{
-    font-family:inherit;
-    font-size:.82rem;
-    padding:.4rem 1rem;
-    border-radius:3px;
-    cursor:pointer;
-    border:1px solid var(--line);
-    background:transparent;
+    position:absolute;
+    top:.7rem;
+    right:.8rem;
+    background:none;
+    border:none;
     color:var(--text-dim);
-    margin-top:1rem;
+    cursor:pointer;
+    font-size:.85rem;
+    padding:.1rem .25rem;
+    line-height:1;
   }
-  .changelog-panel .close-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .changelog-panel .close-btn:hover{ color:var(--accent); }
 
   .settings-panel{
     position:relative;
@@ -818,7 +823,7 @@
   }
   .settings-actions button:hover{ border-color:var(--accent); color:var(--accent); }
   .settings-actions button.danger:hover{ border-color:var(--danger); color:var(--danger); }
-  .settings-panel .close-btn, .changelog-panel .close-btn{
+  .settings-panel .close-btn{
     position:absolute;
     top:.7rem;
     right:.8rem;
@@ -830,24 +835,7 @@
     padding:.1rem .25rem;
     line-height:1;
   }
-  .settings-panel .close-btn:hover, .changelog-panel .close-btn:hover{ color:var(--accent); }
-  .changelog-tabs{
-    display:flex;
-    gap:.3rem;
-    margin-bottom:1rem;
-  }
-  .changelog-tabs button{
-    font-family:inherit;
-    font-size:.75rem;
-    padding:.25rem .6rem;
-    border-radius:3px;
-    cursor:pointer;
-    border:1px solid var(--line);
-    background:transparent;
-    color:var(--text-dim);
-  }
-  .changelog-tabs button:hover{ border-color:var(--accent); color:var(--accent); }
-  .changelog-tabs button.active{ background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+  .settings-panel .close-btn:hover{ color:var(--accent); }
 
   /* dropbox sync */
   .dbx-status{
@@ -1794,6 +1782,7 @@
               'Touch-friendly interaction with larger tap targets and swipe gestures',
               'Optimised editor and note list for narrow screens',
               'Bottom bar navigation replaces the sidebar on phones',
+              'Changelog reworked — all versions now visible in a single scrollable view instead of tabbed panels',
             ],
           },
         ],
@@ -1824,28 +1813,20 @@
 
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    let activeVersion = 0;
-
-    function renderChangelog(){
-      const ver = VERSIONS[activeVersion];
-      overlay.innerHTML = `<div class="changelog-panel">
-        <div class="changelog-tabs">${VERSIONS.map((v, i) => `<button class="${i === activeVersion ? 'active' : ''}" data-idx="${i}">${v.label}</button>`).join('')}</div>
-        <div class="changelog-scroll">
-          ${ver.sections.map(s => `<h3>${s.heading}</h3><ul>${s.items.map(item => `<li>${item}</li>`).join('')}</ul>`).join('')}
-        </div>
-        <button class="close-btn">✕</button>
-      </div>`;
-      overlay.querySelector('.close-btn').addEventListener('click', () => overlay.remove());
-      overlay.querySelector('.changelog-tabs').addEventListener('click', (e) => {
-        const btn = e.target.closest('button');
-        if (btn && btn.dataset.idx !== undefined){
-          activeVersion = Number(btn.dataset.idx);
-          renderChangelog();
-        }
-      });
-    }
-
-    renderChangelog();
+    overlay.innerHTML = `<div class="changelog-panel">
+      <h2>Changelog</h2>
+      <div class="changelog-scroll">
+        ${VERSIONS.map(v => `
+          <div class="version-label">${v.label}</div>
+          ${v.sections.map(s => `
+            ${s.heading ? `<h3>${s.heading}</h3>` : ''}
+            <ul>${s.items.map(item => `<li>${item}</li>`).join('')}</ul>
+          `).join('')}
+        `).join('')}
+      </div>
+      <button class="close-btn">✕</button>
+    </div>`;
+    overlay.querySelector('.close-btn').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.append(overlay);
   });
