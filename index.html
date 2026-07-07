@@ -1466,7 +1466,25 @@
     titleInput.addEventListener('input', () => { n.title = titleInput.value; scheduleSave(); });
     titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); body.focus(); } });
 
-    let composing = false;
+    let composing = false, pendingBodyEdit = false;
+    body.addEventListener('beforeinput', (e) => {
+      if (e.inputType === 'insertText' && e.data != null){
+        e.preventDefault();
+        const start = getCaretOffset(body);
+        let end = start;
+        const sel = window.getSelection();
+        if (sel.rangeCount && !sel.getRangeAt(0).collapsed && body.contains(sel.getRangeAt(0).endContainer)){
+          const range = sel.getRangeAt(0);
+          const pre = range.cloneRange();
+          pre.selectNodeContents(body);
+          pre.setEnd(range.endContainer, range.endOffset);
+          end = nodeToPlainText(pre.cloneContents()).length;
+        }
+        n.body = n.body.slice(0, start) + e.data + n.body.slice(end);
+        applyBodyEdit(start + e.data.length);
+        pendingBodyEdit = true;
+      }
+    });
     function applyBodyEdit(caretPos){
       body.innerHTML = renderBodyHTML(n.body);
       body.classList.toggle('is-empty', !n.body);
@@ -1518,6 +1536,7 @@
     body.addEventListener('mouseup', updateActiveLine);
     body.addEventListener('focus', updateActiveLine);
     body.addEventListener('input', () => {
+      if (pendingBodyEdit) { pendingBodyEdit = false; return; }
       n.body = nodeToPlainText(body);
       if (composing){ scheduleSave(); return; }
       refreshBody();
@@ -1778,6 +1797,7 @@
             items: [
               'Mobile topbar buttons (changelog, settings) moved above the search bar and aligned to the right',
               'Theme system now supports Light, Dark, and System (follows OS preference) — browser chrome colour updates accordingly',
+              'Editor: typing with text selected now correctly replaces the selection instead of preserving it',
             ],
           },
         ],
