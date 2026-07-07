@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>minote</title>
+<script>try{var _t=localStorage.getItem('minote-theme')||'system';if(_t==='system'||!_t){if(window.matchMedia('(prefers-color-scheme: light)').matches)document.documentElement.classList.add('light')}else if(_t==='light'){document.documentElement.classList.add('light')}}catch(e){}</script>
 <style>
   @font-face{
     font-family:'PP Neue Montreal';
@@ -1776,6 +1777,7 @@
             heading: '',
             items: [
               'Mobile topbar buttons (changelog, settings) moved above the search bar and aligned to the right',
+              'Theme system now supports Light, Dark, and System (follows OS preference) — browser chrome colour updates accordingly',
             ],
           },
         ],
@@ -1876,12 +1878,15 @@
     localStorage.setItem('minote-accent', JSON.stringify({ main, dim }));
   }
 
-  function setTheme(dark){
-    document.documentElement.classList.toggle('light', !dark);
-    localStorage.setItem('minote-theme', dark ? 'dark' : 'light');
+  function setTheme(mode){
+    const isLight = mode === 'light' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+    const wasLight = document.documentElement.classList.contains('light');
+    document.documentElement.classList.toggle('light', isLight);
+    localStorage.setItem('minote-theme', mode);
+    document.querySelector('meta[name="theme-color"]').content = isLight ? '#ffffff' : '#1b1e25';
     const currentMain = document.documentElement.style.getPropertyValue('--accent') || '#e8a23a';
-    const from = dark ? 'light' : 'dark';
-    const to = dark ? 'dark' : 'light';
+    const from = wasLight ? 'light' : 'dark';
+    const to = isLight ? 'light' : 'dark';
     const match = ACCENTS[from].find(a => a.main === currentMain) || ACCENTS[to].find(a => a.main === currentMain);
     if (match){
       const next = ACCENTS[to].find(a => a.name === match.name);
@@ -1893,7 +1898,7 @@
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
     const current = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-    const isDark = !document.documentElement.classList.contains('light');
+    const themeMode = localStorage.getItem('minote-theme') || 'system';
     overlay.innerHTML = `<div class="settings-panel">
       <h2>settings</h2>
       <button class="close-btn">✕</button>
@@ -1902,8 +1907,9 @@
           <h3>appearance</h3>
           <label>theme</label>
           <div class="theme-row">
-            <button class="theme-btn${isDark ? ' active' : ''}" data-theme="dark">dark</button>
-            <button class="theme-btn${!isDark ? ' active' : ''}" data-theme="light">light</button>
+            <button class="theme-btn${themeMode === 'dark' ? ' active' : ''}" data-theme="dark">dark</button>
+            <button class="theme-btn${themeMode === 'light' ? ' active' : ''}" data-theme="light">light</button>
+            <button class="theme-btn${themeMode === 'system' ? ' active' : ''}" data-theme="system">system</button>
           </div>
           <label>accent colour</label>
           <div class="color-grid"></div>
@@ -1966,7 +1972,7 @@
       if (btn){
         overlay.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        setTheme(btn.dataset.theme === 'dark');
+        setTheme(btn.dataset.theme);
         const cur = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
         renderSwatches(grid, cur);
       }
@@ -2468,9 +2474,13 @@
     }
   } catch(e){}
   try {
-    const theme = localStorage.getItem('minote-theme');
-    if (theme === 'light') setTheme(false);
+    const theme = localStorage.getItem('minote-theme') || 'system';
+    setTheme(theme);
   } catch(e){}
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const mode = localStorage.getItem('minote-theme') || 'system';
+    if (mode === 'system') setTheme('system');
+  });
 
   (async () => {
     try{
