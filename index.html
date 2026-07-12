@@ -1084,8 +1084,8 @@
 
 <script>
 (() => {
-  const APP_VERSION = '1.4.0';
-  const DEV = false;
+  const APP_VERSION = '1.4.1';
+  const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1214,6 +1214,19 @@
     });
     list.append(allItem);
 
+    const noneItem = document.createElement('div');
+    noneItem.className = 'folder-item' + (activeFolderId === '__none__' ? ' active' : '');
+    const noneName = document.createElement('span');
+    noneName.className = 'folder-name';
+    noneName.textContent = 'no folder';
+    noneItem.append(noneName);
+    noneItem.addEventListener('click', () => {
+      activeFolderId = '__none__';
+      renderFolders();
+      renderIndex();
+    });
+    list.append(noneItem);
+
     folders.forEach(f => {
       const item = document.createElement('div');
       item.className = 'folder-item' + (f.id === activeFolderId ? ' active' : '');
@@ -1286,7 +1299,11 @@
     const term = filter.trim().toLowerCase();
     return notes
       .filter(n => (n.status || 'active') === view)
-      .filter(n => !activeFolderId || n.folderId === activeFolderId)
+      .filter(n => {
+        if (!activeFolderId) return true;
+        if (activeFolderId === '__none__') return !n.folderId;
+        return n.folderId === activeFolderId;
+      })
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
       .filter(n => !imageFilter || (n.images && n.images.length))
       .sort((a,b) => (b.pinned - a.pinned) || (b.updated - a.updated));
@@ -1321,6 +1338,16 @@
       snippet.className = 'snippet';
       snippet.textContent = stripMarkdown(n.body).replace(/\s+/g, ' ').trim().slice(0, 60) || 'empty';
       info.append(title, snippet);
+
+      if (n.folderId){
+        const folder = folders.find(f => f.id === n.folderId);
+        if (folder){
+          const folderBadge = document.createElement('span');
+          folderBadge.className = 'folder-badge';
+          folderBadge.textContent = '\u25B8 ' + folder.name;
+          info.append(folderBadge);
+        }
+      }
 
       if (n.tags && n.tags.length){
         const tagsRow = document.createElement('div');
@@ -1869,7 +1896,7 @@
   }
 
   document.getElementById('addBtn').addEventListener('click', () => {
-    const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: null, pinned: false, status: 'active', color: null, updated: Date.now() };
+    const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: activeFolderId, pinned: false, status: 'active', color: null, updated: Date.now() };
     notes.unshift(n);
     activeId = n.id;
     renderIndex();
@@ -1923,6 +1950,17 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.4.1',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'New notes now automatically inherit the currently selected folder',
+            ],
+          },
+        ],
+      },
       {
         label: '1.4.0',
         sections: [
