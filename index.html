@@ -65,6 +65,17 @@
     overflow:hidden;
   }
 
+  /* dev banner */
+  .dev-banner{
+    position:fixed;top:0;left:0;right:0;z-index:9999;
+    height:24px;
+    display:flex;align-items:center;justify-content:center;
+    background:#dc2626;color:#fff;
+    font-size:.7rem;font-weight:800;letter-spacing:.15em;
+    text-transform:uppercase;user-select:none;
+  }
+  .dev-banner + .topbar{ margin-top:24px; }
+
   /* top bar */
   .topbar{
     display:flex;
@@ -272,10 +283,11 @@
   .folder-item:hover{ background:var(--panel-2); color:var(--text); }
   .folder-item.active{ color:var(--accent); background:var(--panel-2); }
   .folder-item .folder-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .folder-item .folder-del{
+  .folder-item .folder-edit, .folder-item .folder-del{
     background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:.65rem; padding:0 .15rem; display:none;
   }
-  .folder-item:hover .folder-del{ display:inline; }
+  .folder-item:hover .folder-edit, .folder-item:hover .folder-del{ display:inline; }
+  .folder-item .folder-edit:hover{ color:var(--accent); }
   .folder-item .folder-del:hover{ color:var(--danger); }
   .folder-rename-input{
     font-family:inherit;
@@ -968,15 +980,74 @@
 
     .entry .snippet{ max-width:60vw; }
   }
+
+  /* #1 typewriter focus mode */
+  body.focus-mode .topbar,
+  body.focus-mode .index-panel{display:none}
+  body.focus-mode .editor-header,
+  body.focus-mode .editor-meta,
+  body.focus-mode .editor-tags,
+  body.focus-mode .images-container,
+  body.focus-mode .color-row{opacity:0;height:0;overflow:hidden;padding:0;margin:0;border:none;pointer-events:none;min-height:0}
+  body.focus-mode .editor-panel{max-width:760px;margin:0 auto;border:none;background:transparent;padding-top:3rem}
+  body.focus-mode .body{font-size:1.05rem;padding:1.5rem 2.5rem;line-height:1.75}
+  body.focus-mode .body .lm-line:not(.lm-line-active){opacity:.2;transition:opacity .25s}
+  .focus-count{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);font-size:.7rem;color:var(--text-dim);opacity:0;pointer-events:none;transition:opacity .4s;z-index:50;font-family:'PP Neue Montreal',sans-serif}
+  body.focus-mode .focus-count{opacity:.5}
+
+  /* #2 spring micro-interactions */
+  button{transition:transform .12s ease, border-color .2s, color .2s, background .2s}
+  button:active{transform:scale(.93)}
+  .pin-toggle{transition:color .3s cubic-bezier(.34,1.56,.64,1), border-color .3s cubic-bezier(.34,1.56,.64,1), transform .12s ease}
+  .theme-btn,.color-swatch{transition:transform .2s cubic-bezier(.34,1.56,.64,1), border-color .2s, background .2s}
+  .color-swatch:hover{transform:scale(1.12)}
+  .color-swatch:active{transform:scale(.85)}
+
+  /* #3 swipe gestures */
+  .entry{overflow:hidden;touch-action:pan-y}
+  .entry .color-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:.25rem;min-width:8px}
+
+  /* #5 note color picker */
+  .color-row{display:flex;gap:.3rem;align-items:center;padding:.2rem 1.2rem .5rem}
+  .color-row .cp-btn{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;background:var(--panel);flex-shrink:0;transition:border-color .15s,transform .15s cubic-bezier(.34,1.56,.64,1)}
+  .color-row .cp-btn:hover{border-color:var(--text-dim);transform:scale(1.15)}
+  .color-row .cp-btn.active{border-color:var(--text);transform:scale(1.15)}
+  .color-row .cp-clear{font-size:.5rem;color:var(--text-dim);display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);background:var(--panel-2);cursor:pointer;padding:0;flex-shrink:0;transition:border-color .15s,transform .15s cubic-bezier(.34,1.56,.64,1)}
+  .color-row .cp-clear:hover{border-color:var(--text-dim);transform:scale(1.15)}
+
+  /* #4 command palette */
+  .cmd-overlay{z-index:200}
+  .cmd-palette{
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;width:480px;
+    max-width:calc(100vw - 2.4rem);max-height:min(70vh,500px);display:flex;flex-direction:column;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden;
+  }
+  .cmd-wrap{padding:.6rem .8rem;border-bottom:1px solid var(--line)}
+  .cmd-input{
+    width:100%;font-family:inherit;font-size:.9rem;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--text);padding:.5rem .7rem;border-radius:4px;outline:none;
+  }
+  .cmd-input:focus{border-color:var(--accent)}
+  .cmd-list{flex:1;overflow-y:auto;padding:.3rem 0}
+  .cmd-item{
+    display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;cursor:pointer;font-size:.82rem;
+    color:var(--text);
+  }
+  .cmd-item:hover,.cmd-item.active{background:var(--panel-2)}
+  .cmd-item .cmd-ico{width:1.6em;text-align:center;color:var(--text-dim);flex-shrink:0}
+  .cmd-item .cmd-lbl{flex:1}
+  .cmd-item .cmd-hint{color:var(--text-dim);font-size:.66rem;font-family:ui-monospace,Consolas,monospace;margin-left:.5rem}
+  .cmd-empty{padding:.8rem;text-align:center;color:var(--text-dim);font-size:.82rem}
 </style>
 </head>
 <body>
 
+<div class="dev-banner" id="devBanner">DEV</div>
 <div class="topbar">
   <span class="logo">minote</span>
   <span class="version" id="versionBadge"></span>
   <div class="search-wrap">
-    <input type="text" id="search" placeholder="search… (ctrl+k)">
+    <input type="text" id="search" placeholder="search…">
     <button id="searchImgBtn" class="search-img">img</button>
     <button id="searchClearBtn" class="search-clear" hidden>✕</button>
   </div>
@@ -1009,10 +1080,12 @@
 </div>
 
 <div id="toast" class="toast"></div>
+<div id="focusCount" class="focus-count"></div>
 
 <script>
 (() => {
-  const APP_VERSION = '1.3.1';
+  const APP_VERSION = '1.4.0';
+  const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1148,8 +1221,8 @@
       const nameSpan = document.createElement('span');
       nameSpan.className = 'folder-name';
       nameSpan.textContent = f.name;
-      nameSpan.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
+
+      function startRename(){
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'folder-rename-input';
@@ -1168,11 +1241,24 @@
         nameSpan.replaceWith(input);
         input.focus();
         input.select();
+      }
+      nameSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        startRename();
+      });
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'folder-edit';
+      editBtn.textContent = '\u270E';
+      editBtn.title = 'rename folder';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startRename();
       });
 
       const delBtn = document.createElement('button');
       delBtn.className = 'folder-del';
-      delBtn.textContent = '✕';
+      delBtn.textContent = '\u2715';
       delBtn.title = 'delete folder';
       delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -1186,7 +1272,7 @@
         renderIndex();
       });
 
-      item.append(nameSpan, delBtn);
+      item.append(nameSpan, editBtn, delBtn);
       item.addEventListener('click', () => {
         activeFolderId = f.id;
         renderFolders();
@@ -1274,7 +1360,26 @@
         }
       });
 
-      row.append(num, info, del);
+      const dot = document.createElement('div');
+      dot.className = 'color-dot';
+      if (n.color) dot.style.background = n.color;
+
+      row.append(num, dot, info, del);
+
+      let _sx=0,_sy=0;
+      row.addEventListener('touchstart',e=>{_sx=e.changedTouches[0].clientX;_sy=e.changedTouches[0].clientY},{passive:true});
+      row.addEventListener('touchend',e=>{
+        const dx=e.changedTouches[0].clientX-_sx,dy=e.changedTouches[0].clientY-_sy;
+        if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*2){
+          e.preventDefault();
+          if(dx<0){
+            if(view==='active'){if(n.status==='archived')return;n.status='archived'}else if(view==='archived'){n.status='active'}else return;
+            n.updated=Date.now();put(n);markDirty();renderIndex();renderEditor();toast(n.status==='archived'?'archived':'restored');
+          }else{
+            n.pinned=!n.pinned;n.updated=Date.now();put(n);markDirty();renderIndex();toast(n.pinned?'pinned':'unpinned');
+          }
+        }
+      });
       row.addEventListener('click', () => {
         activeId = n.id;
         renderIndex();
@@ -1348,7 +1453,11 @@
       renderIndex();
     });
 
-    header.append(titleInput, folderSelect, pinBtn);
+    const focusBtn = document.createElement('button');
+    focusBtn.className = 'pin-toggle';
+    focusBtn.textContent = '\u25ce focus';
+    focusBtn.addEventListener('click', toggleFocus);
+    header.append(titleInput, folderSelect, pinBtn, focusBtn);
 
     if (n.status === 'trashed'){
       const restoreBtn = document.createElement('button');
@@ -1431,6 +1540,26 @@
     }
     renderTags();
 
+    /* color picker */
+    const colorRow = document.createElement('div');
+    colorRow.className = 'color-row';
+    const NOTE_COLORS = ['#e8a23a','#4caf50','#42a5f5','#ab47bc','#ef5350','#26c6da','#ec407a','#ff7043'];
+    function renderColorRow(){
+      colorRow.innerHTML = '';
+      const clear = document.createElement('button');
+      clear.className = 'cp-clear'; clear.textContent = '\u2715'; clear.title = 'no color';
+      clear.addEventListener('click', (e) => { e.stopPropagation(); n.color = null; renderColorRow(); scheduleSave(); renderIndex(); });
+      colorRow.append(clear);
+      NOTE_COLORS.forEach(c => {
+        const b = document.createElement('button');
+        b.className = 'cp-btn' + (n.color === c ? ' active' : '');
+        b.style.background = c;
+        b.addEventListener('click', (e) => { e.stopPropagation(); n.color = c; renderColorRow(); scheduleSave(); renderIndex(); });
+        colorRow.append(b);
+      });
+    }
+    renderColorRow();
+
     const meta = document.createElement('div');
     meta.className = 'editor-meta';
     meta.textContent = 'last edited ' + fmtDate(n.updated);
@@ -1461,6 +1590,7 @@
         renderIndex();
         put(n).catch(err => console.error('failed to save note', err));
         markDirty();
+        if (document.body.classList.contains('focus-mode')) updateFocusCount();
       }, 400);
     }
     titleInput.addEventListener('input', () => { n.title = titleInput.value; scheduleSave(); });
@@ -1733,12 +1863,13 @@
       }
     });
 
-    editorPanel.append(header, tagsRow, meta, body, imagesContainer);
+    editorPanel.append(header, tagsRow, colorRow, meta, body, imagesContainer);
     body.focus();
+    if (document.body.classList.contains('focus-mode')) updateFocusCount();
   }
 
   document.getElementById('addBtn').addEventListener('click', () => {
-    const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: null, pinned: false, status: 'active', updated: Date.now() };
+    const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: null, pinned: false, status: 'active', color: null, updated: Date.now() };
     notes.unshift(n);
     activeId = n.id;
     renderIndex();
@@ -1755,7 +1886,10 @@
     input.type = 'text';
     input.className = 'folder-rename-input';
     input.placeholder = 'folder name';
+    let committed = false;
     const commit = () => {
+      if (committed) return;
+      committed = true;
       const val = input.value.trim();
       if (val){
         const f = { id: uid(), name: val };
@@ -1789,6 +1923,23 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.4.0',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Typewriter / Focus Mode — full-screen distraction-free editing with centered text, dimmed non-active lines, and live word/character count at the bottom of the viewport',
+              'Spring-based micro-interactions on pin toggles, buttons, and colour swatches for a polished, tactile feel',
+              'Swipe gestures on mobile — swipe right to quickly pin a note, swipe left to archive or restore it',
+              'Command palette (Ctrl+K) — fuzzy-search palette for actions: new note, toggle theme, open settings, jump to folder, switch view, export backup, and toggle focus mode',
+              'Notes can now be assigned a colour; a colour dot appears in the note list and a colour picker is available in the editor header',
+              'Folder rename button — a pencil icon appears on hover next to each folder, offering an explicit rename entry alongside the existing double-click',
+              'Fixed: creating a folder no longer produces a duplicate entry due to the blur event firing after Enter',
+            ],
+          },
+        ],
+      },
       {
         label: '1.3.1',
         sections: [
@@ -2482,8 +2633,10 @@
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'k'){
       e.preventDefault();
-      search.focus();
-      search.select();
+      showCommandPalette();
+    }
+    if (e.key === 'Escape' && document.body.classList.contains('focus-mode')){
+      toggleFocus();
     }
   });
 
@@ -2507,7 +2660,7 @@
       db = await openDB();
       notes = await getAll();
       folders = await getAllFolders();
-      notes.forEach(n => { if (n.body === undefined) n.body = n.text || ''; if (n.title === undefined) n.title = ''; if (n.tags === undefined) n.tags = []; if (n.images === undefined) n.images = []; if (n.folderId === undefined) n.folderId = null; if (n.status === undefined) n.status = 'active'; });
+      notes.forEach(n => { if (n.body === undefined) n.body = n.text || ''; if (n.title === undefined) n.title = ''; if (n.tags === undefined) n.tags = []; if (n.images === undefined) n.images = []; if (n.folderId === undefined) n.folderId = null; if (n.status === undefined) n.status = 'active'; if (n.color === undefined) n.color = null; });
     } catch (err){
       console.error('IndexedDB unavailable, notes will not persist between reloads', err);
       notes = [];
@@ -2521,6 +2674,7 @@
     dropboxHandleRedirect();
     dropboxCheckForUpdates();
     checkVersionUpdate();
+    if (!DEV) document.getElementById('devBanner').remove();
   })();
 
   /* ---------- version change notification ---------- */
@@ -2543,6 +2697,104 @@
     });
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.append(overlay);
+  }
+
+  /* ---------- #4 command palette ---------- */
+  function fuzzyMatch(text, query){
+    if (!query) return true;
+    let qi = 0;
+    for (let i = 0; i < text.length && qi < query.length; i++){
+      if (text[i].toLowerCase() === query[qi].toLowerCase()) qi++;
+    }
+    return qi === query.length;
+  }
+
+  function showCommandPalette(){
+    const actions = [
+      { id:'new', label:'New note', ico:'+', hint:'n', exec:() => document.getElementById('addBtn').click() },
+      { id:'theme', label:'Toggle theme', ico:'\u25d0', hint:'t', exec:() => {
+        const cur = localStorage.getItem('minote-theme') || 'system';
+        const next = cur === 'dark' ? 'light' : cur === 'light' ? 'system' : 'dark';
+        setTheme(next);
+        toast('Theme: ' + next);
+      }},
+      { id:'settings', label:'Open settings', ico:'\u2699', hint:'s', exec:() => document.getElementById('settingsBtn').click() },
+      { id:'focus', label:'Toggle focus mode', ico:'\u25ce', hint:'f', exec:toggleFocus },
+      { id:'v-active', label:'View: notes', ico:'\u2630', hint:'1', exec:() => setView('active') },
+      { id:'v-archived', label:'View: archived', ico:'\u25fb', hint:'2', exec:() => setView('archived') },
+      { id:'v-trashed', label:'View: trash', ico:'\u232b', hint:'3', exec:() => setView('trashed') },
+      { id:'export', label:'Export backup', ico:'\u2B07', hint:'e', exec:() => {
+        document.querySelector('#settingsExportBtn')?.click();
+      }},
+    ];
+    folders.forEach(f => {
+      actions.push({
+        id:'f-'+f.id, label:'Folder: '+f.name, ico:'\u25B8',
+        exec:() => { activeFolderId = f.id; renderFolders(); renderIndex(); }
+      });
+    });
+    const existing = document.querySelector('.cmd-overlay');
+    if (existing) { existing.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay cmd-overlay';
+    overlay.innerHTML = '<div class="cmd-palette"><div class="cmd-wrap"><input type="text" class="cmd-input" placeholder="type a command" autofocus spellcheck="false"></div><div class="cmd-list"></div></div>';
+    const input = overlay.querySelector('.cmd-input');
+    const list = overlay.querySelector('.cmd-list');
+    let sel = 0;
+
+    function render(q){
+      const filtered = actions.filter(a => fuzzyMatch(a.label, q));
+      list.innerHTML = '';
+      if (!filtered.length){
+        list.innerHTML = '<div class="cmd-empty">no matches</div>';
+        return;
+      }
+      if (sel >= filtered.length) sel = filtered.length - 1;
+      filtered.forEach((a, i) => {
+        const row = document.createElement('div');
+        row.className = 'cmd-item' + (i === sel ? ' active' : '');
+        row.innerHTML = '<span class="cmd-ico">' + a.ico + '</span><span class="cmd-lbl">' + a.label + '</span><span class="cmd-hint">' + (a.hint || '') + '</span>';
+        row.addEventListener('mousedown', (e) => { e.preventDefault(); overlay.remove(); a.exec(); });
+        row.addEventListener('mousemove', () => { if (sel !== i){ sel = i; render(q); } });
+        list.append(row);
+      });
+      const active = list.querySelector('.cmd-item.active');
+      if (active) active.scrollIntoView({ block:'nearest' });
+    }
+    render('');
+
+    input.addEventListener('input', () => { sel = 0; render(input.value); });
+    input.addEventListener('keydown', (e) => {
+      const filtered = actions.filter(a => fuzzyMatch(a.label, input.value));
+      if (e.key === 'ArrowDown'){ e.preventDefault(); sel = Math.min(sel + 1, filtered.length - 1); render(input.value); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); sel = Math.max(sel - 1, 0); render(input.value); }
+      else if (e.key === 'Enter' || e.key === 'Tab'){
+        e.preventDefault();
+        if (filtered[sel]){ overlay.remove(); filtered[sel].exec(); }
+      } else if (e.key === 'Escape'){
+        e.preventDefault(); overlay.remove();
+      }
+    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.append(overlay);
+    setTimeout(() => input.focus(), 50);
+  }
+
+  /* ---------- #1 focus mode ---------- */
+  function toggleFocus(){
+    document.body.classList.toggle('focus-mode');
+    if (document.body.classList.contains('focus-mode')) updateFocusCount();
+  }
+
+  function updateFocusCount(){
+    const n = notes.find(x => x.id === activeId);
+    if (!n) return;
+    const text = stripMarkdown(n.body).replace(/\s+/g,' ').trim();
+    const words = text ? text.split(/\s+/).length : 0;
+    const chars = text.length;
+    const el = document.getElementById('focusCount');
+    if (el) el.textContent = words + ' words \u00b7 ' + chars + ' chars';
   }
 
   if ('serviceWorker' in navigator){
