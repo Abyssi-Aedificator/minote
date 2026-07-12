@@ -207,11 +207,11 @@
   }
   .entry:hover{ background:var(--panel-2); }
   .entry.active{ background:var(--panel-2); border-left:3px solid var(--accent); padding-left:calc(.8rem - 3px); }
+  .entry .num-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:1.6em}
   .entry .num{
     color:var(--text-dim);
     font-size:.75rem;
     padding-top:.15rem;
-    min-width:1.6em;
   }
   .entry .info{ flex:1; min-width:0; }
   .entry .title{
@@ -1006,6 +1006,7 @@
   /* #3 swipe gestures */
   .entry{overflow:hidden;touch-action:pan-y}
   .entry .color-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:.25rem;min-width:8px}
+  .entry .folder-icon{font-size:.55rem;color:var(--accent);opacity:.6;text-align:center;min-width:1.6em;line-height:1;margin-top:.3rem;pointer-events:none}
 
   /* #5 note color picker */
   .color-row{display:flex;gap:.3rem;align-items:center;padding:.2rem 1.2rem .5rem}
@@ -1084,8 +1085,8 @@
 
 <script>
 (() => {
-  const APP_VERSION = '1.4.1';
-  const DEV = true;
+   const APP_VERSION = '1.4.1';
+  const DEV = false;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1325,9 +1326,16 @@
       const row = document.createElement('div');
       row.className = 'entry' + (n.id === activeId ? ' active' : '') + (n.pinned ? ' pinned' : '') + ((n.status === 'archived') ? ' archived' : '') + ((n.status === 'trashed') ? ' trashed' : '');
 
+      const numCol = document.createElement('div');
+      numCol.className = 'num-col';
       const num = document.createElement('div');
       num.className = 'num';
       num.textContent = String(i + 1).padStart(2, '0');
+      const fIcon = document.createElement('div');
+      fIcon.className = 'folder-icon';
+      fIcon.textContent = '\u{1F4C1}';
+      if (!n.folderId) fIcon.style.visibility = 'hidden';
+      numCol.append(num, fIcon);
 
       const info = document.createElement('div');
       info.className = 'info';
@@ -1338,16 +1346,6 @@
       snippet.className = 'snippet';
       snippet.textContent = stripMarkdown(n.body).replace(/\s+/g, ' ').trim().slice(0, 60) || 'empty';
       info.append(title, snippet);
-
-      if (n.folderId){
-        const folder = folders.find(f => f.id === n.folderId);
-        if (folder){
-          const folderBadge = document.createElement('span');
-          folderBadge.className = 'folder-badge';
-          folderBadge.textContent = '\u25B8 ' + folder.name;
-          info.append(folderBadge);
-        }
-      }
 
       if (n.tags && n.tags.length){
         const tagsRow = document.createElement('div');
@@ -1391,7 +1389,7 @@
       dot.className = 'color-dot';
       if (n.color) dot.style.background = n.color;
 
-      row.append(num, dot, info, del);
+      row.append(numCol, dot, info, del);
 
       let _sx=0,_sy=0;
       row.addEventListener('touchstart',e=>{_sx=e.changedTouches[0].clientX;_sy=e.changedTouches[0].clientY},{passive:true});
@@ -1957,6 +1955,7 @@
             heading: '',
             items: [
               'New notes now automatically inherit the currently selected folder',
+              'Folder icon shown below the note number for notes that belong to a folder',
             ],
           },
         ],
