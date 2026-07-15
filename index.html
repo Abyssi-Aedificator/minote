@@ -479,6 +479,12 @@
     color:var(--text-dim);
     pointer-events:none;
   }
+  .body.raw{
+    font-family:'Cascadia Code','Fira Code','Consolas','Courier New',monospace;
+    font-size:.85rem;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
   /* live markdown styling */
   .body .lm-mark{ display:none; color:var(--text-dim); opacity:.65; }
   .body .lm-line.lm-line-active .lm-mark{ display:inline; }
@@ -1085,12 +1091,13 @@
 
 <script>
 (() => {
-   const APP_VERSION = '1.4.1';
-  const DEV = false;
+   const APP_VERSION = '1.4.2';
+  const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
   let db;
+  let rawMode = false;
 
   function openDB(){
     return new Promise((resolve, reject) => {
@@ -1415,6 +1422,7 @@
   }
 
   function renderEditor(){
+    rawMode = false;
     const n = notes.find(x => x.id === activeId);
     editorPanel.innerHTML = '';
     updateMobileView();
@@ -1482,7 +1490,25 @@
     focusBtn.className = 'pin-toggle';
     focusBtn.textContent = '\u25ce focus';
     focusBtn.addEventListener('click', toggleFocus);
-    header.append(titleInput, folderSelect, pinBtn, focusBtn);
+
+    const rawBtn = document.createElement('button');
+    rawBtn.className = 'pin-toggle raw-toggle' + (rawMode ? ' on' : '');
+    rawBtn.textContent = 'txt';
+    rawBtn.title = 'view as plain text';
+    rawBtn.addEventListener('click', () => {
+      rawMode = !rawMode;
+      const body = editorPanel.querySelector('.body');
+      if (rawMode){
+        body.innerHTML = mdEscape(n.body);
+        body.classList.add('raw');
+      } else {
+        body.innerHTML = renderBodyHTML(n.body);
+        body.classList.remove('raw');
+        updateActiveLine();
+      }
+      rawBtn.classList.toggle('on', rawMode);
+    });
+    header.append(titleInput, folderSelect, pinBtn, focusBtn, rawBtn);
 
     if (n.status === 'trashed'){
       const restoreBtn = document.createElement('button');
@@ -1596,6 +1622,10 @@
     body.dataset.placeholder = 'write something…';
     body.innerHTML = renderBodyHTML(n.body);
     body.classList.toggle('is-empty', !n.body);
+    if (rawMode){
+      body.innerHTML = mdEscape(n.body);
+      body.classList.add('raw');
+    }
 
     function updateActiveLine(){
       const idx = n.body.slice(0, getCaretOffset(body)).split('\n').length - 1;
@@ -1623,6 +1653,7 @@
 
     let composing = false, pendingBodyEdit = false;
     body.addEventListener('beforeinput', (e) => {
+      if (rawMode) return;
       if (e.inputType === 'insertText' && e.data != null){
         e.preventDefault();
         const start = getCaretOffset(body);
@@ -1694,6 +1725,7 @@
       if (pendingBodyEdit) { pendingBodyEdit = false; return; }
       n.body = nodeToPlainText(body);
       if (composing){ scheduleSave(); return; }
+      if (rawMode){ scheduleSave(); return; }
       refreshBody();
     });
 
@@ -1825,7 +1857,7 @@
         if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
         if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
       }
-      if (e.key === 'Enter'){ e.preventDefault(); handleEnterKey(); }
+      if (e.key === 'Enter' && !rawMode){ e.preventDefault(); handleEnterKey(); }
     });
     body.addEventListener('blur', () => setTimeout(slashClose, 150));
     body.addEventListener('click', () => { if (slashMenu) slashUpdate(); });
@@ -1948,6 +1980,17 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.4.2',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Toggle button (txt) in the editor header to switch between rendered markdown and raw plain-text editing',
+            ],
+          },
+        ],
+      },
       {
         label: '1.4.1',
         sections: [
