@@ -91,7 +91,7 @@
     color:var(--accent);
     font-size:1rem;
   }
-  .topbar .logo::before{ content:'※ '; color:#e8a23a; }
+  .topbar .logo::before{ content:'※ '; color:var(--accent); }
   .topbar .version{
     color:var(--text-dim);
     font-size:.72rem;
@@ -128,7 +128,6 @@
     font-size:.82rem;
   }
   .topbar button:hover{ border-color:var(--accent); color:var(--accent); }
-  .topbar button.danger:hover{ border-color:var(--danger); color:var(--danger); }
   .topbar .search-clear{
     position:absolute;
     right:4px;
@@ -338,6 +337,7 @@
   /* right: editor */
   .editor-panel{
     flex:1;
+    min-height:0;
     display:flex;
     flex-direction:column;
     min-width:0;
@@ -460,6 +460,7 @@
   }
   .body{
     flex:1;
+    min-height:0;
     margin:0;
     padding:1.2rem;
     border:none;
@@ -478,6 +479,12 @@
     content:attr(data-placeholder);
     color:var(--text-dim);
     pointer-events:none;
+  }
+  .body.raw{
+    font-family:'Cascadia Code','Fira Code','Consolas','Courier New',monospace;
+    font-size:.85rem;
+    line-height:1.5;
+    white-space:pre-wrap;
   }
   /* live markdown styling */
   .body .lm-mark{ display:none; color:var(--text-dim); opacity:.65; }
@@ -704,14 +711,6 @@
     border-bottom:1px solid var(--line);
   }
   .changelog-panel .version-label:first-of-type{ margin-top:0; }
-  .changelog-panel h3{
-    margin:.8rem 0 .35rem;
-    font-size:.74rem;
-    font-weight:600;
-    color:var(--text-dim);
-    text-transform:uppercase;
-    letter-spacing:.08em;
-  }
   .changelog-panel ul{
     margin:0 0 .6rem;
     padding-left:1.2rem;
@@ -803,7 +802,6 @@
     border:2px solid transparent;
     transition:transform .12s;
   }
-  .color-swatch:hover{ transform:scale(1.12); }
   .color-swatch.active{ border-color:var(--text); box-shadow:0 0 0 2px var(--panel-2); }
   .theme-row{ display:flex; gap:.5rem; }
   .theme-btn{
@@ -989,6 +987,9 @@
   body.focus-mode .editor-tags,
   body.focus-mode .images-container,
   body.focus-mode .color-row{opacity:0;height:0;overflow:hidden;padding:0;margin:0;border:none;pointer-events:none;min-height:0}
+  /* keep an exit path out of focus mode (esp. on touch devices with no Escape key) */
+  body.focus-mode .mobile-back-btn,
+  body.focus-mode .focus-toggle{opacity:1;height:auto;overflow:visible;pointer-events:auto}
   body.focus-mode .editor-panel{max-width:760px;margin:0 auto;border:none;background:transparent;padding-top:3rem}
   body.focus-mode .body{font-size:1.05rem;padding:1.5rem 2.5rem;line-height:1.75}
   body.focus-mode .body .lm-line:not(.lm-line-active){opacity:.2;transition:opacity .25s}
@@ -1085,12 +1086,14 @@
 
 <script>
 (() => {
-   const APP_VERSION = '1.4.1';
+   const APP_VERSION = '1.5.0';
   const DEV = false;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
   let db;
+  let rawMode = false;
+  let swipeSuppress = false;
 
   function openDB(){
     return new Promise((resolve, reject) => {
@@ -1241,7 +1244,10 @@
         input.type = 'text';
         input.className = 'folder-rename-input';
         input.value = f.name;
+        let committed = false;
         const finish = () => {
+          if (committed) return;
+          committed = true;
           const val = input.value.trim();
           if (val && val !== f.name){
             f.name = val;
@@ -1250,7 +1256,7 @@
           }
           renderFolders();
         };
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); finish(); } else if (e.key === 'Escape'){ renderFolders(); } });
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); finish(); } else if (e.key === 'Escape'){ committed = true; renderFolders(); } });
         input.addEventListener('blur', finish);
         nameSpan.replaceWith(input);
         input.focus();
@@ -1397,6 +1403,8 @@
         const dx=e.changedTouches[0].clientX-_sx,dy=e.changedTouches[0].clientY-_sy;
         if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*2){
           e.preventDefault();
+          swipeSuppress = true;
+          setTimeout(() => { swipeSuppress = false; }, 350);
           if(dx<0){
             if(view==='active'){if(n.status==='archived')return;n.status='archived'}else if(view==='archived'){n.status='active'}else return;
             n.updated=Date.now();put(n);markDirty();renderIndex();renderEditor();toast(n.status==='archived'?'archived':'restored');
@@ -1406,6 +1414,7 @@
         }
       });
       row.addEventListener('click', () => {
+        if (swipeSuppress) return;
         activeId = n.id;
         renderIndex();
         renderEditor();
@@ -1415,6 +1424,7 @@
   }
 
   function renderEditor(){
+    rawMode = false;
     const n = notes.find(x => x.id === activeId);
     editorPanel.innerHTML = '';
     updateMobileView();
@@ -1479,10 +1489,31 @@
     });
 
     const focusBtn = document.createElement('button');
-    focusBtn.className = 'pin-toggle';
+    focusBtn.className = 'pin-toggle focus-toggle';
     focusBtn.textContent = '\u25ce focus';
     focusBtn.addEventListener('click', toggleFocus);
-    header.append(titleInput, folderSelect, pinBtn, focusBtn);
+
+    const rawBtn = document.createElement('button');
+    rawBtn.className = 'pin-toggle raw-toggle' + (rawMode ? ' on' : '');
+    rawBtn.textContent = 'txt';
+    rawBtn.title = 'view as plain text';
+    rawBtn.addEventListener('click', () => {
+      rawMode = !rawMode;
+      const body = editorPanel.querySelector('.body');
+      const off = getCaretOffset(body);
+      if (rawMode){
+        body.innerHTML = mdEscape(n.body);
+        body.classList.add('raw');
+      } else {
+        body.innerHTML = renderBodyHTML(n.body);
+        body.classList.remove('raw');
+        updateActiveLine();
+      }
+      setCaretOffset(body, off);
+      body.classList.toggle('is-empty', !n.body);
+      rawBtn.classList.toggle('on', rawMode);
+    });
+    header.append(titleInput, folderSelect, pinBtn, focusBtn, rawBtn);
 
     if (n.status === 'trashed'){
       const restoreBtn = document.createElement('button');
@@ -1617,12 +1648,14 @@
         markDirty();
         if (document.body.classList.contains('focus-mode')) updateFocusCount();
       }, 400);
+      _pendingSaves.set(n.id, { timer: debounce, note: n });
     }
     titleInput.addEventListener('input', () => { n.title = titleInput.value; scheduleSave(); });
     titleInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); body.focus(); } });
 
     let composing = false, pendingBodyEdit = false;
     body.addEventListener('beforeinput', (e) => {
+      if (rawMode) return;
       if (e.inputType === 'insertText' && e.data != null){
         e.preventDefault();
         const start = getCaretOffset(body);
@@ -1641,6 +1674,7 @@
       }
     });
     function applyBodyEdit(caretPos){
+      if (rawMode) return;
       body.innerHTML = renderBodyHTML(n.body);
       body.classList.toggle('is-empty', !n.body);
       setCaretOffset(body, caretPos);
@@ -1694,6 +1728,7 @@
       if (pendingBodyEdit) { pendingBodyEdit = false; return; }
       n.body = nodeToPlainText(body);
       if (composing){ scheduleSave(); return; }
+      if (rawMode){ body.classList.toggle('is-empty', !n.body); scheduleSave(); return; }
       refreshBody();
     });
 
@@ -1727,6 +1762,7 @@
     }
 
     function slashInsert(item){
+      if (rawMode) return;
       const pos = getCaretOffset(body);
       const before = n.body.slice(0, slashStart);
       const after = n.body.slice(pos);
@@ -1796,6 +1832,7 @@
     }
 
     function slashUpdate(){
+      if (rawMode){ if (slashMenu) slashClose(); return; }
       const pos = getCaretOffset(body);
       const before = n.body.slice(0, pos);
       if (slashMenu){
@@ -1825,7 +1862,7 @@
         if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
         if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
       }
-      if (e.key === 'Enter'){ e.preventDefault(); handleEnterKey(); }
+      if (e.key === 'Enter' && !rawMode){ e.preventDefault(); handleEnterKey(); }
     });
     body.addEventListener('blur', () => setTimeout(slashClose, 150));
     body.addEventListener('click', () => { if (slashMenu) slashUpdate(); });
@@ -1883,6 +1920,7 @@
         }
       }
       if (!hasImage){
+        if (rawMode) return;
         e.preventDefault();
         insertTextAtCaret(e.clipboardData.getData('text/plain'));
       }
@@ -1894,7 +1932,7 @@
   }
 
   document.getElementById('addBtn').addEventListener('click', () => {
-    const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: activeFolderId, pinned: false, status: 'active', color: null, updated: Date.now() };
+    const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: activeFolderId === '__none__' ? null : activeFolderId, pinned: false, status: 'active', color: null, updated: Date.now() };
     notes.unshift(n);
     activeId = n.id;
     renderIndex();
@@ -1948,6 +1986,24 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.5.0',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Toggle button (txt) in the editor header to switch between rendered markdown and raw plain-text editing',
+              'Plain-text (txt) mode fully wired: caret and placeholder are preserved, paste and slash commands no longer break it, and it resets when switching notes',
+              'New notes created while viewing "no folder" are no longer hidden or given a phantom folder',
+              'Folder rename Escape now cancels instead of committing',
+              'Swipe gestures no longer trigger a stray tap that opens the wrong note',
+              'Command palette: Export and Import backup work directly, and single-key shortcuts (n, t, f, s, 1, 2, 3, e, i) are now active',
+              'Dropbox sync now merges by id (offline edits are preserved) with a conflict prompt, uploads on launch, and flushes pending saves on tab close',
+              'Focus mode keeps an on-screen exit on touch devices; accent colour now applies to the logo mark',
+            ],
+          },
+        ],
+      },
       {
         label: '1.4.1',
         sections: [
@@ -2102,6 +2158,38 @@
     }
   }
 
+  function doExport(){
+    const payload = { app: 'minote', version: 1, exportedAt: new Date().toISOString(), data: { notes, folders } };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'minote-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Backup exported');
+  }
+
+  function doImport(){
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const d = dbxParseBackup(await file.text());
+        if (!await confirmDialog('Import this backup? It will replace all your current notes and folders.', true)) return;
+        await dbxApplyData(d);
+        markDirty();
+        toast('Backup imported');
+      } catch (err) {
+        toast('⚠ ' + (err.message === 'bad backup format' ? "That file isn't a minote backup" : err.message));
+      }
+    });
+    input.click();
+  }
+
   document.getElementById('settingsBtn').addEventListener('click', () => {
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -2196,35 +2284,9 @@
     overlay.querySelector('#dbxAutoUpload').addEventListener('change', (e) => dropboxSetAutoUpload(e.target.checked));
     overlay.querySelector('#dbxAutoSync').addEventListener('change', (e) => dropboxSetAutoSync(e.target.checked));
 
-    overlay.querySelector('#settingsExportBtn').addEventListener('click', () => {
-      const payload = { app: 'minote', version: 1, exportedAt: new Date().toISOString(), data: { notes, folders } };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'minote-export.json';
-      a.click();
-      URL.revokeObjectURL(url);
-      toast('Backup exported');
-    });
+    overlay.querySelector('#settingsExportBtn').addEventListener('click', doExport);
 
-    overlay.querySelector('#settingsImportBtn').addEventListener('click', () => {
-      overlay.querySelector('#importFile').click();
-    });
-    overlay.querySelector('#importFile').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        const d = dbxParseBackup(await file.text());
-        if (!await confirmDialog('Import this backup? It will replace all your current notes and folders.', true)) return;
-        await dbxApplyData(d);
-        markDirty();
-        toast('Backup imported');
-        overlay.remove();
-      } catch (err) {
-        toast('⚠ ' + (err.message === 'bad backup format' ? "That file isn't a minote backup" : err.message));
-      }
-    });
+    overlay.querySelector('#settingsImportBtn').addEventListener('click', doImport);
 
     overlay.querySelector('#settingsClearBtn').addEventListener('click', async () => {
       const active = notes.filter(n => (n.status || 'active') === 'active');
@@ -2405,11 +2467,21 @@
   const dbxSave = () => localStorage.setItem(DBX_KEY, JSON.stringify(dbx));
   const dbxRedirectUri = () => location.origin + location.pathname;
 
-  let _syncTimer = null, _skipAutoUpload = false, _lastUploadedState = '', _syncing = 0;
+  let _syncTimer = null, _lastUploadedState = '', _syncing = 0;
+  const _pendingSaves = new Map();
   function markDirty(){ scheduleAutoUpload(); }
+  function flushPending(){
+    for (const { timer, note } of _pendingSaves.values()){
+      clearTimeout(timer);
+      put(note).catch(err => console.error('failed to save note', err));
+    }
+    _pendingSaves.clear();
+    if (_syncTimer){ clearTimeout(_syncTimer); dropboxUpload(true); }
+  }
+  window.addEventListener('beforeunload', flushPending);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPending(); });
   function scheduleAutoUpload(){
     if (!dbx.accessToken || !dbx.autoUpload) return;
-    if (_skipAutoUpload){ _skipAutoUpload = false; return; }
     clearTimeout(_syncTimer);
     _syncTimer = setTimeout(() => dropboxUpload(true), 10000);
   }
@@ -2497,25 +2569,55 @@
     return d;
   }
 
-  async function dbxApplyData(d){
+  async function dbxApplyData(d, { merge = false } = {}){
+    const norm = (x) => {
+      if (x.body === undefined) x.body = x.text || '';
+      if (x.title === undefined) x.title = '';
+      if (x.tags === undefined) x.tags = [];
+      if (x.images === undefined) x.images = [];
+      if (x.folderId === undefined) x.folderId = null;
+      if (x.status === undefined) x.status = 'active';
+      if (x.color === undefined) x.color = null;
+      return x;
+    };
+    const remoteNotes = (d.notes || []).map(norm);
+    const remoteFolders = (d.folders || []).map(f => ({ id: f.id, name: f.name || 'folder' }));
+    let conflicts = 0;
+    if (merge){
+      const mergeById = (localArr, remoteArr) => {
+        const localById = new Map(localArr.map(x => [x.id, x]));
+        const remoteById = new Map(remoteArr.map(x => [x.id, x]));
+        const out = [];
+        const ids = new Set([...localById.keys(), ...remoteById.keys()]);
+        const sinceSync = dbx.lastSyncAt || 0;
+        for (const id of ids){
+          const l = localById.get(id), r = remoteById.get(id);
+          if (l && !r){ out.push(l); }
+          else if (r && !l){ out.push(r); }
+          else {
+            const lu = l.updated || 0, ru = r.updated || 0;
+            if (lu > sinceSync && ru > sinceSync) conflicts++;
+            out.push(ru >= lu ? r : l);
+          }
+        }
+        return out;
+      };
+      notes = mergeById(notes, remoteNotes);
+      folders = mergeById(folders, remoteFolders);
+    } else {
+      notes = remoteNotes;
+      folders = remoteFolders;
+    }
     await clearAll();
     await clearAllFolders();
-    notes = d.notes || [];
-    folders = d.folders || [];
-    notes.forEach(n => {
-      if (n.body === undefined) n.body = n.text || '';
-      if (n.title === undefined) n.title = '';
-      if (n.tags === undefined) n.tags = [];
-      if (n.images === undefined) n.images = [];
-      if (n.folderId === undefined) n.folderId = null;
-      if (n.status === undefined) n.status = 'active';
-    });
     for (const n of notes) await put(n);
     for (const f of folders) await putFolder(f);
     activeId = null;
+    activeFolderId = null;
     _lastUploadedState = JSON.stringify({ notes, folders });
-    _skipAutoUpload = true;
+    localStorage.setItem('minote-uploaded-state', _lastUploadedState);
     renderFolders(); renderIndex(); renderEditor();
+    return conflicts;
   }
 
   async function dropboxUpload(silent){
@@ -2533,13 +2635,14 @@
       });
       if (!res.ok) throw new Error('upload failed (' + res.status + ')');
       _lastUploadedState = snapshot;
+      localStorage.setItem('minote-uploaded-state', snapshot);
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
       toast(silent ? 'Auto-synced to Dropbox' : 'Uploaded to Dropbox');
     } catch (err) { toast('⚠ ' + err.message); }
     finally { setSyncing(false); }
   }
 
-  async function dropboxDownload(skipConfirm){
+  async function dropboxDownload(skipConfirm, { merge = false } = {}){
     if (!await dropboxRefreshIfNeeded()){ toast('⚠ Dropbox session expired — reconnect'); return; }
     try {
       const res = await fetch('https://content.dropboxapi.com/2/files/download', {
@@ -2551,10 +2654,19 @@
       if (res.status === 409){ toast('No backup in Dropbox yet — upload one first'); return; }
       if (!res.ok) throw new Error('download failed (' + res.status + ')');
       const d = dbxParseBackup(await res.text());
-      if (!skipConfirm && !await confirmDialog('Download from Dropbox? It will replace all your current notes and folders.', true)) return;
-      await dbxApplyData(d);
+      if (!merge){
+        if (!skipConfirm && !await confirmDialog('Download from Dropbox? It will replace all your current notes and folders.', true)) return;
+        await dbxApplyData(d);
+      } else {
+        const conflicts = await dbxApplyData(d, { merge: true });
+        if (conflicts){
+          const keep = await confirmDialog(conflicts + ' note' + (conflicts === 1 ? '' : 's') + ' changed on both this device and Dropbox since the last sync. Keep the Dropbox versions? (Cancel keeps this device\u2019s versions.)', true);
+          if (keep){ await dbxApplyData(d); }
+          else { _lastUploadedState = JSON.stringify({ notes, folders }); localStorage.setItem('minote-uploaded-state', _lastUploadedState); }
+        }
+      }
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
-      toast('Synced from Dropbox');
+      toast(merge ? 'Merged with Dropbox' : 'Synced from Dropbox');
     } catch (err) { toast('⚠ ' + (err.message === 'bad backup format' ? "Dropbox file isn't a minote backup" : err.message)); }
   }
 
@@ -2589,7 +2701,7 @@
       const remoteAt = Date.parse(j.server_modified || '');
       if (!remoteAt) return;
       if (remoteAt > (dbx.lastSyncAt || 0) + 5000 && remoteAt !== dbx.dismissedRemoteAt){
-        if (dbx.autoSync) dropboxDownload(true);
+        if (dbx.autoSync) dropboxDownload(true, { merge: true });
         else openDbxSyncPrompt(remoteAt);
       }
     } catch (e) {}
@@ -2706,10 +2818,14 @@
     renderFolders();
     renderIndex();
     renderEditor();
-    _lastUploadedState = JSON.stringify({ notes, folders });
+    const storedState = localStorage.getItem('minote-uploaded-state');
+    _lastUploadedState = storedState || JSON.stringify({ notes, folders });
     updateDropboxUI();
     dropboxHandleRedirect();
     dropboxCheckForUpdates();
+    if (dbx.accessToken && dbx.autoUpload && JSON.stringify({ notes, folders }) !== _lastUploadedState){
+      setTimeout(() => dropboxUpload(true), 1500);
+    }
     checkVersionUpdate();
     if (!DEV) document.getElementById('devBanner').remove();
   })();
@@ -2760,9 +2876,8 @@
       { id:'v-active', label:'View: notes', ico:'\u2630', hint:'1', exec:() => setView('active') },
       { id:'v-archived', label:'View: archived', ico:'\u25fb', hint:'2', exec:() => setView('archived') },
       { id:'v-trashed', label:'View: trash', ico:'\u232b', hint:'3', exec:() => setView('trashed') },
-      { id:'export', label:'Export backup', ico:'\u2B07', hint:'e', exec:() => {
-        document.querySelector('#settingsExportBtn')?.click();
-      }},
+      { id:'export', label:'Export backup', ico:'\u2B07', hint:'e', exec:doExport },
+      { id:'import', label:'Import backup', ico:'\u2B06', hint:'i', exec:doImport },
     ];
     folders.forEach(f => {
       actions.push({
@@ -2811,6 +2926,9 @@
         if (filtered[sel]){ overlay.remove(); filtered[sel].exec(); }
       } else if (e.key === 'Escape'){
         e.preventDefault(); overlay.remove();
+      } else if (!input.value && /^[a-z0-9]$/i.test(e.key)){
+        const hit = actions.find(a => a.hint === e.key.toLowerCase());
+        if (hit){ e.preventDefault(); overlay.remove(); hit.exec(); return; }
       }
     });
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
