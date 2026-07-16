@@ -74,7 +74,7 @@
     font-size:.7rem;font-weight:800;letter-spacing:.15em;
     text-transform:uppercase;user-select:none;
   }
-  .dev-banner + .topbar{ margin-top:24px; }
+  /* .dev-banner + .topbar{ margin-top:24px; } */
 
   /* top bar */
   .topbar{
@@ -200,12 +200,13 @@
     align-items:flex-start;
     gap:.5rem;
     padding:.65rem .8rem;
+    border-left:3px solid transparent;
     border-bottom:1px solid var(--line);
     cursor:pointer;
     position:relative;
   }
   .entry:hover{ background:var(--panel-2); }
-  .entry.active{ background:var(--panel-2); border-left:3px solid var(--accent); padding-left:calc(.8rem - 3px); }
+  .entry.active{ background:var(--panel-2); border-left-color:var(--accent); }
   .entry .num-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:1.6em}
   .entry .num{
     color:var(--text-dim);
@@ -1044,7 +1045,6 @@
 </head>
 <body>
 
-<div class="dev-banner" id="devBanner">DEV</div>
 <div class="topbar">
   <span class="logo">minote</span>
   <span class="version" id="versionBadge"></span>
@@ -1086,8 +1086,8 @@
 
 <script>
 (() => {
-   const APP_VERSION = '1.5.0';
-  const DEV = false;
+   const APP_VERSION = '1.5.1';
+  const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1323,7 +1323,7 @@
     if (!list.length){
       const empty = document.createElement('div');
       empty.className = 'index-empty';
-      empty.textContent = view === 'active' ? (notes.length ? 'no matches' : 'no notes yet') : view === 'archived' ? 'no archived notes' : 'trash is empty';
+      empty.textContent = filter || imageFilter ? 'no matches' : view === 'active' ? (notes.length ? 'no matches' : 'no notes yet') : view === 'archived' ? 'no archived notes' : 'trash is empty';
       entriesEl.append(empty);
       return;
     }
@@ -1862,7 +1862,19 @@
         if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
         if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
       }
-      if (e.key === 'Enter' && !rawMode){ e.preventDefault(); handleEnterKey(); }
+      if (e.key === 'Enter'){
+        e.preventDefault();
+        if (rawMode){
+          const pos = getCaretOffset(body);
+          n.body = n.body.slice(0, pos) + '\n' + n.body.slice(pos);
+          body.innerHTML = mdEscape(n.body);
+          body.classList.toggle('is-empty', !n.body);
+          setCaretOffset(body, pos + 1);
+          scheduleSave();
+        } else {
+          handleEnterKey();
+        }
+      }
     });
     body.addEventListener('blur', () => setTimeout(slashClose, 150));
     body.addEventListener('click', () => { if (slashMenu) slashUpdate(); });
@@ -1920,7 +1932,17 @@
         }
       }
       if (!hasImage){
-        if (rawMode) return;
+        if (rawMode){
+          e.preventDefault();
+          const text = e.clipboardData.getData('text/plain');
+          const pos = getCaretOffset(body);
+          n.body = n.body.slice(0, pos) + text + n.body.slice(pos);
+          body.innerHTML = mdEscape(n.body);
+          body.classList.toggle('is-empty', !n.body);
+          setCaretOffset(body, pos + text.length);
+          scheduleSave();
+          return;
+        }
         e.preventDefault();
         insertTextAtCaret(e.clipboardData.getData('text/plain'));
       }
@@ -1986,6 +2008,21 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.5.1',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Fixed: pressing Enter in plain-text (txt) mode no longer corrupts multi-line content on Chromium-based browsers',
+              'Fixed: pasting multi-line text in plain-text mode now correctly preserves line breaks',
+              'Fixed: entry list no longer jitters when selecting a note (border-left no longer shifts padding)',
+              'Fixed: empty-state message in archived/trash views now respects search and image filters',
+              'Robustness: nodeToPlainText handles block elements as newline boundaries',
+            ],
+          },
+        ],
+      },
       {
         label: '1.5.0',
         sections: [
@@ -2219,8 +2256,7 @@
             <button id="settingsImportBtn">import</button>
             <button id="settingsClearBtn" class="danger">clear all</button>
           </div>
-          <input type="file" id="importFile" accept="application/json,.json" hidden>
-        </div>
+          </div>
 
         <div class="settings-card">
           <h3>dropbox sync <span id="dbxStatus" class="dbx-status"></span></h3>
@@ -2396,6 +2432,7 @@
       if (node.nodeType !== Node.ELEMENT_NODE) return;
       if (node.tagName === 'BR'){ out += '\n'; return; }
       node.childNodes.forEach(walk);
+      if (node.tagName === 'DIV' || node.tagName === 'P'){ out += '\n'; }
     };
     root.childNodes.forEach(walk);
     return out.replace(/​/g, '');
@@ -2827,7 +2864,7 @@
       setTimeout(() => dropboxUpload(true), 1500);
     }
     checkVersionUpdate();
-    if (!DEV) document.getElementById('devBanner').remove();
+    if (!DEV) document.getElementById('devBanner')?.remove();
   })();
 
   /* ---------- version change notification ---------- */
