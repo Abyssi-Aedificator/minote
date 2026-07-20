@@ -1086,7 +1086,7 @@
 
 <script>
 (() => {
-   const APP_VERSION = '1.5.1';
+   const APP_VERSION = '1.5.2';
   const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
@@ -1566,13 +1566,17 @@
       (n.tags || []).forEach(t => {
         const pill = document.createElement('span');
         pill.className = 'tag-pill';
-        pill.innerHTML = t + ' <span class="tag-del">✕</span>';
-        pill.querySelector('.tag-del').addEventListener('click', (e) => {
+        const tagText = document.createTextNode(t);
+        const del = document.createElement('span');
+        del.className = 'tag-del';
+        del.textContent = '✕';
+        del.addEventListener('click', (e) => {
           e.stopPropagation();
           n.tags = n.tags.filter(x => x !== t);
           renderTags();
           scheduleSave();
         });
+        pill.append(tagText, ' ', del);
         tagsRow.append(pill);
       });
       const input = document.createElement('input');
@@ -2008,6 +2012,23 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.5.2',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Fixed: pressing Enter in plain-text (txt) mode no longer corrupts multi-line content on Chromium-based browsers',
+              'Fixed: pasting multi-line text in plain-text mode now correctly preserves line breaks',
+              'Fixed: entry list no longer jitters when selecting a note (border-left no longer shifts padding)',
+              'Fixed: empty-state message in archived/trash views now respects search and image filters',
+              'Fixed: tag names containing HTML are no longer interpreted as markup (XSS)',
+              'Fixed: folder names containing HTML are no longer interpreted as markup in the command palette (XSS)',
+              'Robustness: nodeToPlainText handles block elements as newline boundaries',
+            ],
+          },
+        ],
+      },
       {
         label: '1.5.1',
         sections: [
@@ -2918,7 +2939,7 @@
     ];
     folders.forEach(f => {
       actions.push({
-        id:'f-'+f.id, label:'Folder: '+f.name, ico:'\u25B8',
+        id:'f-'+f.id, label:'Folder: '+mdEscape(f.name), ico:'\u25B8',
         exec:() => { activeFolderId = f.id; renderFolders(); renderIndex(); }
       });
     });
