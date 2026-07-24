@@ -74,7 +74,7 @@
     font-size:.7rem;font-weight:800;letter-spacing:.15em;
     text-transform:uppercase;user-select:none;
   }
-  /* .dev-banner + .topbar{ margin-top:24px; } */
+  .dev-banner + .topbar{ margin-top:24px; }
 
   /* top bar */
   .topbar{
@@ -178,6 +178,12 @@
     display:flex;
     flex-direction:column;
   }
+  .panel-resize{
+    width:5px;flex-shrink:0;cursor:col-resize;
+    background:transparent;transition:background .15s;
+    touch-action:none;
+  }
+  .panel-resize:hover,.panel-resize.active{background:var(--accent)}
   .index-panel .new-row{
     padding:.6rem;
     border-bottom:1px solid var(--line);
@@ -964,6 +970,7 @@
     .search-wrap{ order:2; flex:1 1 100%; max-width:none; }
 
     .index-panel{ width:100%; }
+    .panel-resize{ display:none; }
     .editor-panel{ display:none; }
     .layout.show-editor .editor-panel{ display:flex; }
     .layout.show-editor .index-panel{ display:none; }
@@ -1045,6 +1052,8 @@
 </head>
 <body>
 
+<div class="dev-banner" id="devBanner">DEV</div>
+
 <div class="topbar">
   <span class="logo">minote</span>
   <span class="version" id="versionBadge"></span>
@@ -1074,8 +1083,9 @@
       <div id="foldersList"></div>
     </div>
     <div class="new-row"><button id="addBtn">+ new note</button></div>
-    <div id="entries"></div>
+    <div id="entries">    </div>
   </div>
+  <div class="panel-resize" id="panelResize"></div>
   <div class="editor-panel" id="editorPanel">
     <div class="no-selection">select a note, or create a new one</div>
   </div>
@@ -1086,7 +1096,7 @@
 
 <script>
 (() => {
-   const APP_VERSION = '1.5.2';
+   const APP_VERSION = '1.5.3';
   const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
@@ -1175,6 +1185,36 @@
   const entriesEl = document.getElementById('entries');
   const editorPanel = document.getElementById('editorPanel');
   const layoutEl = document.getElementById('layout');
+
+  /* panel resize */
+  const indexPanel = entriesEl.closest('.index-panel');
+  const resizeHandle = document.getElementById('panelResize');
+  let resizing = false;
+  (function initPanelResize(){
+    const saved = localStorage.getItem('minote-panel-w');
+    if(saved) indexPanel.style.width = saved + 'px';
+    resizeHandle.addEventListener('pointerdown', (e) => {
+      resizing = true;
+      resizeHandle.classList.add('active');
+      resizeHandle.setPointerCapture(e.pointerId);
+      document.body.style.userSelect = 'none';
+    });
+    resizeHandle.addEventListener('pointermove', (e) => {
+      if(!resizing) return;
+      const rect = layoutEl.getBoundingClientRect();
+      let w = e.clientX - rect.left;
+      const maxW = rect.width * 0.5;
+      w = Math.max(200, Math.min(w, maxW));
+      indexPanel.style.width = w + 'px';
+    });
+    resizeHandle.addEventListener('pointerup', () => {
+      if(!resizing) return;
+      resizing = false;
+      resizeHandle.classList.remove('active');
+      document.body.style.userSelect = '';
+      localStorage.setItem('minote-panel-w', indexPanel.offsetWidth);
+    });
+  })();
 
   function updateMobileView(){
     layoutEl.classList.toggle('show-editor', !!activeId);
@@ -2012,6 +2052,17 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.5.3',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Added: left panel (note list) is now resizable by dragging the divider edge; width persists across sessions',
+            ],
+          },
+        ],
+      },
       {
         label: '1.5.2',
         sections: [
@@ -2885,7 +2936,7 @@
       setTimeout(() => dropboxUpload(true), 1500);
     }
     checkVersionUpdate();
-    if (!DEV) document.getElementById('devBanner')?.remove();
+    if (!DEV) document.getElementById('devBanner').remove();
   })();
 
   /* ---------- version change notification ---------- */
