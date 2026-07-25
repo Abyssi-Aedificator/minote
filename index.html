@@ -1110,6 +1110,7 @@
   body.focus-mode .body .lm-line:not(.lm-line-active){opacity:.2;transition:opacity .25s}
   .focus-count{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);font-size:.7rem;color:var(--text-dim);opacity:0;pointer-events:none;transition:opacity .4s;z-index:50;font-family:'PP Neue Montreal',sans-serif}
   body.focus-mode .focus-count{opacity:.5}
+  .editor-footer{padding:.3rem .8rem;font-size:.68rem;color:var(--text-dim);border-top:1px solid var(--line);text-align:right}
 
   /* #2 spring micro-interactions */
   button{transition:transform .12s ease, border-color .2s, color .2s, background .2s}
@@ -1940,7 +1941,7 @@
         renderIndex();
         put(n).catch(err => console.error('failed to save note', err));
         markDirty();
-        if (document.body.classList.contains('focus-mode')) updateFocusCount();
+        updateFocusCount();
       }, 400);
       _pendingSaves.set(n.id, { timer: debounce, note: n });
     }
@@ -2243,8 +2244,12 @@
     });
 
     editorPanel.append(header, tagsRow, colorRow, meta, body, imagesContainer);
+    const footer = document.createElement('div');
+    footer.className = 'editor-footer';
+    footer.id = 'editorFooter';
+    editorPanel.append(footer);
     body.focus();
-    if (document.body.classList.contains('focus-mode')) updateFocusCount();
+    updateFocusCount();
   }
 
   document.getElementById('addBtn').addEventListener('click', () => {
@@ -2312,6 +2317,7 @@
               'Added: folder icons — choose from a predefined icon set',
               'Added: tags section in the sidebar with note counts',
               'Added: click a tag in the sidebar to filter notes',
+              'Added: word and character count visible in editor footer',
             ],
           },
         ],
@@ -3325,8 +3331,11 @@
     const text = stripMarkdown(n.body).replace(/\s+/g,' ').trim();
     const words = text ? text.split(/\s+/).length : 0;
     const chars = text.length;
+    const countStr = words + ' words \u00b7 ' + chars + ' chars';
     const el = document.getElementById('focusCount');
-    if (el) el.textContent = words + ' words \u00b7 ' + chars + ' chars';
+    if (el) el.textContent = countStr;
+    const el2 = document.getElementById('editorFooter');
+    if (el2) el2.textContent = countStr;
   }
 
   if ('serviceWorker' in navigator){
