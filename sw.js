@@ -1,4 +1,4 @@
-const CACHE = 'minote-v1';
+const CACHE = 'minote-v3';
 const ASSETS = [
   '.',
   'index.html',

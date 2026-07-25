@@ -79,11 +79,26 @@
   /* top bar */
   .topbar{
     display:flex;
+    align-items:stretch;
+    background:var(--panel);
+  }
+  .topbar-left{
+    display:flex;
     align-items:center;
     gap:.8rem;
+    padding:.7rem 0 .7rem 1rem;
+    border-bottom:1px solid var(--line);
+    width:var(--topbar-left-w, 465px);
+    flex-shrink:0;
+  }
+  .topbar-right{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:.8rem;
+    justify-content:flex-end;
     padding:.7rem 1rem;
     border-bottom:1px solid var(--line);
-    background:var(--panel);
   }
   .topbar .logo{
     font-weight:bold;
@@ -103,7 +118,7 @@
   .search-wrap{
     position:relative;
     flex:1;
-    max-width:320px;
+    min-width:0;
   }
   .search-wrap input[type="text"]{
     width:100%;
@@ -116,7 +131,6 @@
     box-sizing:border-box;
   }
   .search-wrap input[type="text"]:focus{ outline:1px solid var(--accent); }
-  .topbar .spacer{ flex:1; }
   .topbar button{
     font-family:inherit;
     background:transparent;
@@ -168,8 +182,18 @@
     min-height:0;
   }
 
-  /* left: note index */
-  .index-panel{
+  /* left: folder list */
+  .folder-panel{
+    width:180px;
+    flex-shrink:0;
+    border-right:1px solid var(--line);
+    background:var(--panel);
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+  }
+  /* middle: note list */
+  .note-panel{
     width:280px;
     flex-shrink:0;
     border-right:1px solid var(--line);
@@ -184,11 +208,12 @@
     touch-action:none;
   }
   .panel-resize:hover,.panel-resize.active{background:var(--accent)}
-  .index-panel .new-row{
+  .folder-toggle-btn{display:none}
+  .note-panel .new-row{
     padding:.6rem;
     border-bottom:1px solid var(--line);
   }
-  .index-panel .new-row button{
+  .note-panel .new-row button{
     width:100%;
     font-family:inherit;
     background:var(--accent-dim);
@@ -199,7 +224,7 @@
     cursor:pointer;
     font-size:.85rem;
   }
-  .index-panel .new-row button:hover{ background:var(--accent); color:#1b1303; }
+  .note-panel .new-row button:hover{ background:var(--accent); color:#1b1303; }
 
   .entry{
     display:flex;
@@ -254,9 +279,6 @@
   }
 
   /* folders */
-  .folders-section{
-    border-bottom:1px solid var(--line);
-  }
   .folders-header{
     display:flex;
     align-items:center;
@@ -319,6 +341,15 @@
   .folder-select:focus{ outline:1px solid var(--accent); }
 
   /* view tabs */
+  .note-panel-header{
+    display:flex;
+    align-items:center;
+    border-bottom:1px solid var(--line);
+  }
+  .note-panel-header .view-tabs{
+    flex:1;
+    border-bottom:none;
+  }
   .view-tabs{
     display:flex;
     border-bottom:1px solid var(--line);
@@ -685,21 +716,21 @@
   }
 
   /* themed scrollbars */
-  .changelog-scroll, .settings-scroll, .index-panel{
+  .changelog-scroll, .settings-scroll, .folder-panel, .note-panel{
     scrollbar-width:thin;
     scrollbar-color:var(--line) transparent;
   }
-  .changelog-scroll::-webkit-scrollbar, .settings-scroll::-webkit-scrollbar, .index-panel::-webkit-scrollbar{
+  .changelog-scroll::-webkit-scrollbar, .settings-scroll::-webkit-scrollbar, .folder-panel::-webkit-scrollbar, .note-panel::-webkit-scrollbar{
     width:8px;
   }
-  .changelog-scroll::-webkit-scrollbar-track, .settings-scroll::-webkit-scrollbar-track, .index-panel::-webkit-scrollbar-track{
+  .changelog-scroll::-webkit-scrollbar-track, .settings-scroll::-webkit-scrollbar-track, .folder-panel::-webkit-scrollbar-track, .note-panel::-webkit-scrollbar-track{
     background:transparent;
   }
-  .changelog-scroll::-webkit-scrollbar-thumb, .settings-scroll::-webkit-scrollbar-thumb, .index-panel::-webkit-scrollbar-thumb{
+  .changelog-scroll::-webkit-scrollbar-thumb, .settings-scroll::-webkit-scrollbar-thumb, .folder-panel::-webkit-scrollbar-thumb, .note-panel::-webkit-scrollbar-thumb{
     background:var(--line);
     border-radius:4px;
   }
-  .changelog-scroll::-webkit-scrollbar-thumb:hover, .settings-scroll::-webkit-scrollbar-thumb:hover, .index-panel::-webkit-scrollbar-thumb:hover{
+  .changelog-scroll::-webkit-scrollbar-thumb:hover, .settings-scroll::-webkit-scrollbar-thumb:hover, .folder-panel::-webkit-scrollbar-thumb:hover, .note-panel::-webkit-scrollbar-thumb:hover{
     background:var(--accent-dim);
   }
   .changelog-panel h2{
@@ -963,17 +994,40 @@
   /* mobile */
   .mobile-back-btn{ display:none; }
   @media (max-width:760px){
-    .topbar{ flex-wrap:wrap; row-gap:.3rem; }
-    .topbar .spacer{ display:none; }
-    .topbar::before{ content:''; order:1; flex:1; }
-    #syncBtn, #changelogBtn, #settingsBtn{ order:1; }
-    .search-wrap{ order:2; flex:1 1 100%; max-width:none; }
+    .topbar-left{
+      width:auto;flex:1;border-right:none;
+      flex-wrap:wrap;row-gap:.3rem;
+    }
+    .topbar-right{
+      flex-wrap:wrap;row-gap:.3rem;justify-content:flex-end;
+    }
+    .search-wrap{ flex:1 1 100%; }
 
-    .index-panel{ width:100%; }
+    .folder-panel{
+      position:absolute;top:0;left:0;bottom:0;
+      width:260px;z-index:100;
+      transform:translateX(-100%);transition:transform .2s ease;
+      box-shadow:none;
+    }
+    .folder-panel.show{transform:translateX(0);box-shadow:4px 0 12px rgba(0,0,0,.3)}
     .panel-resize{ display:none; }
+
+    .note-panel{ width:100%; }
+    .note-panel-header{
+      display:flex;align-items:center;gap:.4rem;
+      padding:.4rem .6rem;
+      border-bottom:1px solid var(--line);
+    }
+    .folder-toggle-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      background:none;border:none;color:var(--text);font-size:1.1rem;
+      padding:.2rem .4rem;cursor:pointer;
+    }
+    .folder-toggle-btn:hover{color:var(--accent)}
     .editor-panel{ display:none; }
+
+    .layout.show-editor .note-panel{ display:none; }
     .layout.show-editor .editor-panel{ display:flex; }
-    .layout.show-editor .index-panel{ display:none; }
 
     .mobile-back-btn{
       display:inline-flex;
@@ -989,7 +1043,9 @@
 
   /* #1 typewriter focus mode */
   body.focus-mode .topbar,
-  body.focus-mode .index-panel{display:none}
+  body.focus-mode .folder-panel,
+  body.focus-mode .note-panel,
+  body.focus-mode .panel-resize{display:none}
   body.focus-mode .editor-header,
   body.focus-mode .editor-meta,
   body.focus-mode .editor-tags,
@@ -1055,37 +1111,44 @@
 <div class="dev-banner" id="devBanner">DEV</div>
 
 <div class="topbar">
-  <span class="logo">minote</span>
-  <span class="version" id="versionBadge"></span>
-  <div class="search-wrap">
-    <input type="text" id="search" placeholder="search…">
-    <button id="searchImgBtn" class="search-img">img</button>
-    <button id="searchClearBtn" class="search-clear" hidden>✕</button>
+  <div class="topbar-left">
+    <span class="logo">minote</span>
+    <span class="version" id="versionBadge"></span>
+    <div class="search-wrap">
+      <input type="text" id="search" placeholder="search…">
+      <button id="searchImgBtn" class="search-img">img</button>
+      <button id="searchClearBtn" class="search-clear" hidden>✕</button>
+    </div>
   </div>
-  <div class="spacer"></div>
-  <button id="syncBtn" style="display:none"><span class="sync-ico">⟳</span> sync</button>
-  <button id="changelogBtn">changelog</button>
-  <button id="settingsBtn">settings</button>
+  <div class="topbar-right">
+    <button id="syncBtn" style="display:none"><span class="sync-ico">⟳</span> sync</button>
+    <button id="changelogBtn">changelog</button>
+    <button id="settingsBtn">settings</button>
+  </div>
 </div>
 
 <div class="layout" id="layout">
-  <div class="index-panel">
-    <div class="view-tabs">
-      <button id="viewActive" class="active">notes</button>
-      <button id="viewArchived">archived</button>
-      <button id="viewTrashed">trash</button>
+  <div class="folder-panel" id="folderPanel">
+    <div class="folders-header">
+      <span>folders</span>
+      <button id="addFolderBtn" title="new folder">+</button>
     </div>
-    <div class="folders-section">
-      <div class="folders-header">
-        <span>folders</span>
-        <button id="addFolderBtn" title="new folder">+</button>
+    <div id="foldersList"></div>
+  </div>
+  <div class="panel-resize" id="folderResize"></div>
+  <div class="note-panel" id="notePanel">
+    <div class="note-panel-header">
+      <button id="folderToggle" class="folder-toggle-btn" title="folders">☰</button>
+      <div class="view-tabs">
+        <button id="viewActive" class="active">notes</button>
+        <button id="viewArchived">archived</button>
+        <button id="viewTrashed">trash</button>
       </div>
-      <div id="foldersList"></div>
     </div>
     <div class="new-row"><button id="addBtn">+ new note</button></div>
-    <div id="entries">    </div>
+    <div id="entries"></div>
   </div>
-  <div class="panel-resize" id="panelResize"></div>
+  <div class="panel-resize" id="noteResize"></div>
   <div class="editor-panel" id="editorPanel">
     <div class="no-selection">select a note, or create a new one</div>
   </div>
@@ -1096,8 +1159,8 @@
 
 <script>
 (() => {
-   const APP_VERSION = '1.5.3';
-  const DEV = true;
+    const APP_VERSION = '1.5.3';
+  const DEV = false;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1185,36 +1248,93 @@
   const entriesEl = document.getElementById('entries');
   const editorPanel = document.getElementById('editorPanel');
   const layoutEl = document.getElementById('layout');
+  const folderPanel = document.getElementById('folderPanel');
+  const notePanel = document.getElementById('notePanel');
 
-  /* panel resize */
-  const indexPanel = entriesEl.closest('.index-panel');
-  const resizeHandle = document.getElementById('panelResize');
-  let resizing = false;
-  (function initPanelResize(){
-    const saved = localStorage.getItem('minote-panel-w');
-    if(saved) indexPanel.style.width = saved + 'px';
-    resizeHandle.addEventListener('pointerdown', (e) => {
-      resizing = true;
-      resizeHandle.classList.add('active');
-      resizeHandle.setPointerCapture(e.pointerId);
+  /* folder panel resize */
+  const folderResize = document.getElementById('folderResize');
+  let resizingFolder = false;
+  function syncFolderWidth(){
+    document.documentElement.style.setProperty('--folder-w', folderPanel.offsetWidth + 'px');
+  }
+  function syncTopbarLeft(){
+    const lr = layoutEl.getBoundingClientRect();
+    const nr = noteResize.getBoundingClientRect();
+    document.documentElement.style.setProperty('--topbar-left-w', (nr.left - lr.left + 1) + 'px');
+  }
+  (function initFolderResize(){
+    const saved = localStorage.getItem('minote-folder-w');
+    if(saved) folderPanel.style.width = saved + 'px';
+    syncFolderWidth();
+    folderResize.addEventListener('pointerdown', (e) => {
+      resizingFolder = true;
+      folderResize.classList.add('active');
+      folderResize.setPointerCapture(e.pointerId);
       document.body.style.userSelect = 'none';
     });
-    resizeHandle.addEventListener('pointermove', (e) => {
-      if(!resizing) return;
+    folderResize.addEventListener('pointermove', (e) => {
+      if(!resizingFolder) return;
       const rect = layoutEl.getBoundingClientRect();
       let w = e.clientX - rect.left;
-      const maxW = rect.width * 0.5;
-      w = Math.max(200, Math.min(w, maxW));
-      indexPanel.style.width = w + 'px';
+      w = Math.max(120, Math.min(w, rect.width * 0.35));
+      folderPanel.style.width = w + 'px';
+      syncFolderWidth();
+      syncTopbarLeft();
     });
-    resizeHandle.addEventListener('pointerup', () => {
-      if(!resizing) return;
-      resizing = false;
-      resizeHandle.classList.remove('active');
+    folderResize.addEventListener('pointerup', () => {
+      if(!resizingFolder) return;
+      resizingFolder = false;
+      folderResize.classList.remove('active');
       document.body.style.userSelect = '';
-      localStorage.setItem('minote-panel-w', indexPanel.offsetWidth);
+      localStorage.setItem('minote-folder-w', folderPanel.offsetWidth);
+      syncFolderWidth();
+      syncTopbarLeft();
     });
   })();
+
+  /* note panel resize */
+  const noteResize = document.getElementById('noteResize');
+  let resizingNote = false;
+  (function initNoteResize(){
+    const saved = localStorage.getItem('minote-panel-w');
+    if(saved) notePanel.style.width = saved + 'px';
+    syncTopbarLeft();
+    noteResize.addEventListener('pointerdown', (e) => {
+      resizingNote = true;
+      noteResize.classList.add('active');
+      noteResize.setPointerCapture(e.pointerId);
+      document.body.style.userSelect = 'none';
+    });
+    noteResize.addEventListener('pointermove', (e) => {
+      if(!resizingNote) return;
+      const rect = layoutEl.getBoundingClientRect();
+      const folderW = folderPanel.offsetWidth + 5;
+      let w = e.clientX - rect.left - folderW;
+      w = Math.max(200, Math.min(w, rect.width * 0.5));
+      notePanel.style.width = w + 'px';
+      syncTopbarLeft();
+    });
+    noteResize.addEventListener('pointerup', () => {
+      if(!resizingNote) return;
+      resizingNote = false;
+      noteResize.classList.remove('active');
+      document.body.style.userSelect = '';
+      localStorage.setItem('minote-panel-w', notePanel.offsetWidth);
+    });
+  })();
+
+  /* mobile folder panel toggle */
+  const folderToggle = document.getElementById('folderToggle');
+  if(folderToggle){
+    folderToggle.addEventListener('click', () => {
+      folderPanel.classList.toggle('show');
+    });
+    document.addEventListener('click', (e) => {
+      if(folderPanel.classList.contains('show') && !folderPanel.contains(e.target) && e.target !== folderToggle){
+        folderPanel.classList.remove('show');
+      }
+    });
+  }
 
   function updateMobileView(){
     layoutEl.classList.toggle('show-editor', !!activeId);
@@ -2058,7 +2178,10 @@
           {
             heading: '',
             items: [
-              'Added: left panel (note list) is now resizable by dragging the divider edge; width persists across sessions',
+              'Added: three-panel layout with separate folder and note panels',
+              'Added: both panels are resizable by dragging the divider; widths persist across sessions',
+              'Added: mobile folder panel as slide-in overlay',
+              'Fixed: search bar right edge aligns with note panel border',
             ],
           },
         ],
