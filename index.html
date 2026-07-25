@@ -339,6 +339,57 @@
     cursor:pointer;
   }
   .folder-select:focus{ outline:1px solid var(--accent); }
+  .tags-header{
+    display:flex;
+    align-items:center;
+    padding:.45rem .8rem .3rem;
+    margin-top:.4rem;
+    border-top:1px solid var(--line);
+    font-size:.68rem;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--text-dim);
+  }
+  .tag-item{
+    display:flex;
+    align-items:center;
+    padding:.28rem .8rem;
+    cursor:pointer;
+    font-size:.82rem;
+    color:var(--text-dim);
+    gap:.4rem;
+  }
+  .tag-item:hover{ background:var(--panel-2); color:var(--text); }
+  .tag-item.active{ color:var(--accent); background:var(--panel-2); }
+  .tag-item .tag-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-item .tag-count{
+    font-size:.65rem;
+    color:var(--text-dim);
+    background:var(--panel-2);
+    padding:.05rem .35rem;
+    border-radius:8px;
+    line-height:1;
+  }
+  .tag-item.active .tag-count{ background:var(--accent-dim); color:var(--accent); }
+  .folder-item .folder-icon-btn{
+    background:none; border:none; cursor:pointer;
+    font-size:.85rem; padding:0; line-height:1;
+    flex-shrink:0; width:1.2rem; text-align:center;
+  }
+  .folder-item .folder-icon-btn:hover{ opacity:.7; }
+  .icon-picker{
+    position:absolute; z-index:200;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:4px; padding:.3rem;
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:.15rem;
+    box-shadow:0 4px 12px rgba(0,0,0,.3);
+  }
+  .icon-picker button{
+    background:none; border:1px solid transparent; cursor:pointer;
+    font-size:1rem; padding:.2rem; line-height:1; border-radius:3px;
+    text-align:center;
+  }
+  .icon-picker button:hover{ border-color:var(--accent); background:var(--panel-2); }
 
   /* view tabs */
   .note-panel-header{
@@ -1134,6 +1185,8 @@
       <button id="addFolderBtn" title="new folder">+</button>
     </div>
     <div id="foldersList"></div>
+    <div class="tags-header"><span>tags</span></div>
+    <div id="tagsList"></div>
   </div>
   <div class="panel-resize" id="folderResize"></div>
   <div class="note-panel" id="notePanel">
@@ -1159,8 +1212,8 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.5.3';
-  const DEV = false;
+    const APP_VERSION = '1.6.0';
+  const DEV = true;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1347,6 +1400,7 @@
   let folders = [];
   let activeId = null;
   let activeFolderId = null;
+  let activeTag = null;
   let filter = '';
   let imageFilter = false;
   let view = 'active';
@@ -1360,6 +1414,9 @@
     return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) +
            ' ' + d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
   }
+
+  const FOLDER_ICONS = ['📁','📂','📋','📝','⭐','💼','🏠','📚','🔖','🏷️','💡','🎯','📅','📊','🎨','🔧','🧠','🌐','💻','📷'];
+  let openIconPicker = null;
 
   function renderFolders(){
     const list = document.getElementById('foldersList');
@@ -1452,10 +1509,80 @@
         renderIndex();
       });
 
-      item.append(nameSpan, editBtn, delBtn);
+      const iconBtn = document.createElement('button');
+      iconBtn.className = 'folder-icon-btn';
+      iconBtn.textContent = f.icon || '\uD83D\uDCC1';
+      iconBtn.title = 'change icon';
+      iconBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (openIconPicker){ openIconPicker.remove(); openIconPicker = null; }
+        const picker = document.createElement('div');
+        picker.className = 'icon-picker';
+        FOLDER_ICONS.forEach(ic => {
+          const btn = document.createElement('button');
+          btn.textContent = ic;
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            f.icon = ic;
+            putFolder(f);
+            iconBtn.textContent = ic;
+            picker.remove();
+            openIconPicker = null;
+            markDirty();
+          });
+          picker.append(btn);
+        });
+        item.style.position = 'relative';
+        picker.style.top = '100%';
+        picker.style.left = '0';
+        item.append(picker);
+        openIconPicker = picker;
+        const closePicker = (ev) => {
+          if (!picker.contains(ev.target)){
+            picker.remove();
+            openIconPicker = null;
+            document.removeEventListener('click', closePicker);
+          }
+        };
+        setTimeout(() => document.addEventListener('click', closePicker), 0);
+      });
+
+      item.append(iconBtn, nameSpan, editBtn, delBtn);
       item.addEventListener('click', () => {
         activeFolderId = f.id;
         renderFolders();
+        renderIndex();
+      });
+      list.append(item);
+    });
+  }
+
+  function allTags(){
+    const map = {};
+    notes.forEach(n => {
+      if ((n.status || 'active') !== 'active') return;
+      (n.tags || []).forEach(t => { map[t] = (map[t] || 0) + 1; });
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }
+
+  function renderTagsList(){
+    const list = document.getElementById('tagsList');
+    list.innerHTML = '';
+    const tags = allTags();
+    tags.forEach(([tag, count]) => {
+      const item = document.createElement('div');
+      item.className = 'tag-item' + (activeTag === tag ? ' active' : '');
+      const name = document.createElement('span');
+      name.className = 'tag-name';
+      name.textContent = tag;
+      const countEl = document.createElement('span');
+      countEl.className = 'tag-count';
+      countEl.textContent = count;
+      item.append(name, countEl);
+      item.addEventListener('click', () => {
+        activeTag = activeTag === tag ? null : tag;
+        renderTagsList();
         renderIndex();
       });
       list.append(item);
@@ -1471,12 +1598,14 @@
         if (activeFolderId === '__none__') return !n.folderId;
         return n.folderId === activeFolderId;
       })
+      .filter(n => !activeTag || (n.tags || []).includes(activeTag))
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
       .filter(n => !imageFilter || (n.images && n.images.length))
       .sort((a,b) => (b.pinned - a.pinned) || (b.updated - a.updated));
   }
 
   function renderIndex(){
+    renderTagsList();
     const list = visibleNotes();
     entriesEl.innerHTML = '';
 
@@ -1499,7 +1628,8 @@
       num.textContent = String(i + 1).padStart(2, '0');
       const fIcon = document.createElement('div');
       fIcon.className = 'folder-icon';
-      fIcon.textContent = '\u{1F4C1}';
+      const fObj = n.folderId ? folders.find(ff => ff.id === n.folderId) : null;
+      fIcon.textContent = fObj ? (fObj.icon || '\uD83D\uDCC1') : '\uD83D\uDCC1';
       if (!n.folderId) fIcon.style.visibility = 'hidden';
       numCol.append(num, fIcon);
 
@@ -2141,7 +2271,7 @@
       committed = true;
       const val = input.value.trim();
       if (val){
-        const f = { id: uid(), name: val };
+        const f = { id: uid(), name: val, icon: '\uD83D\uDCC1' };
         folders.push(f);
         putFolder(f);
         markDirty();
@@ -2160,6 +2290,7 @@
 
   function setView(v){
     view = v;
+    activeTag = null;
     document.querySelectorAll('.view-tabs button').forEach(b => b.classList.remove('active'));
     document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).classList.add('active');
     activeId = null;
@@ -2172,6 +2303,19 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.6.0',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Added: folder icons — choose from a predefined icon set',
+              'Added: tags section in the sidebar with note counts',
+              'Added: click a tag in the sidebar to filter notes',
+            ],
+          },
+        ],
+      },
       {
         label: '1.5.3',
         sections: [
@@ -2813,7 +2957,7 @@
       return x;
     };
     const remoteNotes = (d.notes || []).map(norm);
-    const remoteFolders = (d.folders || []).map(f => ({ id: f.id, name: f.name || 'folder' }));
+    const remoteFolders = (d.folders || []).map(f => ({ id: f.id, name: f.name || 'folder', icon: f.icon || '\uD83D\uDCC1' }));
     let conflicts = 0;
     if (merge){
       const mergeById = (localArr, remoteArr) => {
@@ -3042,6 +3186,7 @@
       notes = await getAll();
       folders = await getAllFolders();
       notes.forEach(n => { if (n.body === undefined) n.body = n.text || ''; if (n.title === undefined) n.title = ''; if (n.tags === undefined) n.tags = []; if (n.images === undefined) n.images = []; if (n.folderId === undefined) n.folderId = null; if (n.status === undefined) n.status = 'active'; if (n.color === undefined) n.color = null; });
+      folders.forEach(f => { if (f.icon === undefined) f.icon = '\uD83D\uDCC1'; });
     } catch (err){
       console.error('IndexedDB unavailable, notes will not persist between reloads', err);
       notes = [];
@@ -3113,7 +3258,7 @@
     ];
     folders.forEach(f => {
       actions.push({
-        id:'f-'+f.id, label:'Folder: '+mdEscape(f.name), ico:'\u25B8',
+        id:'f-'+f.id, label:(f.icon||'\uD83D\uDCC1')+' '+mdEscape(f.name), ico:'\u25B8',
         exec:() => { activeFolderId = f.id; renderFolders(); renderIndex(); }
       });
     });

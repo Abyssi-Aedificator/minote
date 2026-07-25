@@ -43,7 +43,7 @@ Run this after every JS change.
 
 **IndexedDB** (`minote-db`, version 3) with two stores:
 - `notes` (keyPath `id`): `{ id, title, body, tags, images, folderId, status, color, pinned, updated }`
-- `folders` (keyPath `id`): `{ id, name }`
+- `folders` (keyPath `id`): `{ id, name, icon }`
 
 **Folder sentinel**: `activeFolderId === '__none__'` is a client-side filter for notes with `folderId === null`. Not stored in the note itself.
 
@@ -54,6 +54,10 @@ Run this after every JS change.
 ## Architecture
 
 **Pattern**: Single-writer — in-memory `notes`/`folders` arrays are the source of truth. IndexedDB is persistence. `renderIndex()` and `renderEditor()` re-render from memory.
+
+**Folder icons**: Each folder has an `icon` field (emoji/unicode char, default `'📁'`). Icon picker uses `FOLDER_ICONS` array (20 predefined icons). `allTags()` derives unique tags with counts from active notes.
+
+**Tag filtering**: `activeTag` state variable (null = no filter). Clicking a tag in the sidebar toggles the filter. `setView()` resets `activeTag` to null.
 
 **Editor**: `contentEditable` div. `n.body` (plain string) is the authoritative source. Edits intercepted via `beforeinput`, string updated, DOM re-rendered from string. Never trust the DOM for body content.
 
@@ -107,7 +111,8 @@ OAuth2 PKCE, no backend. Single file at `/minote-backup.json`.
 |---|---|
 | `minote-theme` | `'dark'` / `'light'` / `'system'` |
 | `minote-accent` | JSON `{main, dim}` |
-| `minote-panel-w` | Left panel width (px) |
+| `minote-panel-w` | Note panel width (px) |
+| `minote-folder-w` | Folder panel width (px) |
 | `minote-version` | Last-seen `APP_VERSION` |
 | `minote-uploaded-state` | Last-uploaded JSON snapshot |
 | `minote.dropbox` | Full Dropbox state object |
@@ -148,7 +153,7 @@ Light theme (`:root.light`) overrides `--bg`, `--panel`, `--panel-2`, `--line`, 
 
 ## Note list
 
-**`visibleNotes()` pipeline**: Filter by view → filter by folder → filter by search term (title, body, tags) → filter by imageFilter → sort (pinned first, then newest first).
+**`visibleNotes()` pipeline**: Filter by view → filter by folder → filter by tag → filter by search term (title, body, tags) → filter by imageFilter → sort (pinned first, then newest first).
 
 **Search**: Case-insensitive `.includes()` on title, body, and tags. Cumulative with imageFilter.
 
