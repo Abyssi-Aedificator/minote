@@ -460,6 +460,16 @@
     font-size:.85rem;
   }
   .editor-header .pin-toggle.on{ color:var(--accent); border-color:var(--accent); }
+  .find-bar{ display:flex; flex-direction:column; gap:.3rem; padding:.5rem 1.2rem; border-bottom:1px solid var(--line); background:var(--panel); }
+  .find-row{ display:flex; align-items:center; gap:.4rem; }
+  .find-input, .find-replace-input{ flex:1; font-family:inherit; font-size:.82rem; background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:.3rem .5rem; border-radius:3px; outline:none; }
+  .find-input:focus, .find-replace-input:focus{ border-color:var(--accent); }
+  .find-bar button{ background:none; border:1px solid var(--line); border-radius:3px; color:var(--text-dim); padding:.25rem .4rem; cursor:pointer; font-size:.75rem; }
+  .find-bar button:hover{ color:var(--text); border-color:var(--text-dim); }
+  .find-info{ font-size:.7rem; color:var(--text-dim); min-width:3rem; text-align:center; }
+  .find-replace-row{ padding-top:.3rem; border-top:1px solid var(--line); }
+  .body mark.find-hl{ background:var(--accent-dim); color:var(--text); border-radius:2px; padding:0; }
+  .body mark.find-current{ background:var(--accent); color:var(--panel); }
   .editor-meta{
     padding:.3rem 1.2rem 0;
     color:var(--text-dim);
@@ -1101,7 +1111,8 @@
   body.focus-mode .editor-meta,
   body.focus-mode .editor-tags,
   body.focus-mode .images-container,
-  body.focus-mode .color-row{opacity:0;height:0;overflow:hidden;padding:0;margin:0;border:none;pointer-events:none;min-height:0}
+  body.focus-mode .color-row,
+  body.focus-mode .find-bar{opacity:0;height:0;overflow:hidden;padding:0;margin:0;border:none;pointer-events:none;min-height:0}
   /* keep an exit path out of focus mode (esp. on touch devices with no Escape key) */
   body.focus-mode .mobile-back-btn,
   body.focus-mode .focus-toggle{opacity:1;height:auto;overflow:visible;pointer-events:auto}
@@ -1214,7 +1225,7 @@
 <script>
 (() => {
     const APP_VERSION = '1.6.0';
-  const DEV = true;
+  const DEV = false;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
@@ -1405,6 +1416,10 @@
   let filter = '';
   let imageFilter = false;
   let view = 'active';
+  let findBarEl = null;
+  let findMatches = [];
+  let findIdx = -1;
+  let currentFindTerm = '';
 
   function uid(){
     return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -1718,6 +1733,10 @@
     rawMode = false;
     const n = notes.find(x => x.id === activeId);
     editorPanel.innerHTML = '';
+    findBarEl = null;
+    findMatches = [];
+    findIdx = -1;
+    currentFindTerm = '';
     updateMobileView();
 
     const undoStack = [];
@@ -2008,9 +2027,149 @@
       updateActiveLine();
       scheduleSave();
       slashUpdate();
+      if (findBarEl && currentFindTerm) highlightMatches(currentFindTerm);
     }
     function refreshBody(){
       applyBodyEdit(getCaretOffset(body));
+    }
+    function clearHighlights(){
+      if (!body) return;
+      body.querySelectorAll('mark.find-hl').forEach(m => {
+        const t = document.createTextNode(m.textContent);
+        m.parentNode.replaceChild(t, m);
+      });
+      if (body.normalize) body.normalize();
+      findMatches = [];
+      findIdx = -1;
+    }
+    function highlightMatches(term){
+      clearHighlights();
+      currentFindTerm = term;
+      if (!term || !body) { updateFindInfo(); return; }
+      const lowerTerm = term.toLowerCase();
+      const textNodes = [];
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+      let nd;
+      while (nd = walker.nextNode()) textNodes.push(nd);
+      let plainOffset = 0;
+      for (const tn of textNodes){
+        const text = tn.nodeValue;
+        const lowerText = text.toLowerCase();
+        if (!lowerText.includes(lowerTerm)) { plainOffset += text.length; continue; }
+        const frag = document.createDocumentFragment();
+        let lastIdx = 0, idx;
+        while ((idx = lowerText.indexOf(lowerTerm, lastIdx)) !== -1){
+          if (idx > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, idx)));
+          const mark = document.createElement('mark');
+          mark.className = 'find-hl';
+          mark.textContent = text.slice(idx, idx + term.length);
+          frag.appendChild(mark);
+          findMatches.push({ start: plainOffset + idx, end: plainOffset + idx + term.length });
+          lastIdx = idx + term.length;
+        }
+        if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        plainOffset += text.length;
+        tn.parentNode.replaceChild(frag, tn);
+      }
+      if (findMatches.length && findIdx < 0) findIdx = 0;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function updateFindInfo(){
+      if (!findBarEl) return;
+      const info = findBarEl.querySelector('.find-info');
+      if (info) info.textContent = findMatches.length ? (findIdx + 1) + '/' + findMatches.length : '0/0';
+    }
+    function updateFindCurrent(){
+      if (!body) return;
+      const marks = body.querySelectorAll('mark.find-hl');
+      marks.forEach((m, i) => m.classList.toggle('find-current', i === findIdx));
+      if (marks[findIdx]) marks[findIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    function findNext(){
+      if (!findMatches.length) return;
+      findIdx = (findIdx + 1) % findMatches.length;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function findPrev(){
+      if (!findMatches.length) return;
+      findIdx = (findIdx - 1 + findMatches.length) % findMatches.length;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function replaceCurrent(replacement){
+      if (findIdx < 0 || findIdx >= findMatches.length || !currentFindTerm) return;
+      pushUndo();
+      const m = findMatches[findIdx];
+      n.body = n.body.slice(0, m.start) + replacement + n.body.slice(m.end);
+      applyBodyEdit(m.start + replacement.length);
+      highlightMatches(currentFindTerm);
+      if (findIdx >= findMatches.length) findIdx = findMatches.length - 1;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function replaceAllMatches(replacement){
+      if (!currentFindTerm || !findMatches.length) return;
+      pushUndo();
+      const regex = new RegExp(currentFindTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      n.body = n.body.replace(regex, replacement);
+      applyBodyEdit(0);
+      highlightMatches(currentFindTerm);
+      updateFindInfo();
+    }
+    function openFindBar(replaceMode){
+      if (findBarEl){ findBarEl.querySelector('.find-input').focus(); return; }
+      findBarEl = document.createElement('div');
+      findBarEl.className = 'find-bar';
+      findBarEl.innerHTML = `
+        <div class="find-row">
+          <input type="text" class="find-input" placeholder="find…" spellcheck="false">
+          <span class="find-info">0/0</span>
+          <button class="find-prev" title="previous">▲</button>
+          <button class="find-next" title="next">▼</button>
+          <button class="find-replace-toggle" title="replace">⌕</button>
+          <button class="find-close" title="close">✕</button>
+        </div>
+        <div class="find-row find-replace-row"${replaceMode ? '' : ' hidden'}>
+          <input type="text" class="find-replace-input" placeholder="replace…" spellcheck="false">
+          <button class="find-replace-one">Replace</button>
+          <button class="find-replace-all">All</button>
+        </div>`;
+      const header = editorPanel.querySelector('.editor-header');
+      if (header) header.after(findBarEl); else editorPanel.prepend(findBarEl);
+      const input = findBarEl.querySelector('.find-input');
+      const rInput = findBarEl.querySelector('.find-replace-input');
+      input.addEventListener('input', () => {
+        const q = input.value;
+        if (q) highlightMatches(q); else { clearHighlights(); currentFindTerm = ''; }
+        updateFindInfo();
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); if (e.shiftKey) findPrev(); else findNext(); }
+        if (e.key === 'Escape'){ e.preventDefault(); closeFindBar(); }
+        e.stopPropagation();
+      });
+      rInput.addEventListener('keydown', e => {
+        if (e.key === 'Escape'){ e.preventDefault(); closeFindBar(); }
+        e.stopPropagation();
+      });
+      findBarEl.querySelector('.find-prev').addEventListener('click', findPrev);
+      findBarEl.querySelector('.find-next').addEventListener('click', findNext);
+      findBarEl.querySelector('.find-close').addEventListener('click', closeFindBar);
+      findBarEl.querySelector('.find-replace-toggle').addEventListener('click', () => {
+        const rr = findBarEl.querySelector('.find-replace-row');
+        rr.hidden = !rr.hidden;
+        if (!rr.hidden) rInput.focus();
+      });
+      findBarEl.querySelector('.find-replace-one').addEventListener('click', () => replaceCurrent(rInput.value));
+      findBarEl.querySelector('.find-replace-all').addEventListener('click', () => replaceAllMatches(rInput.value));
+      input.focus();
+    }
+    function closeFindBar(){
+      clearHighlights();
+      currentFindTerm = '';
+      if (findBarEl){ findBarEl.remove(); findBarEl = null; }
     }
     function insertTextAtCaret(text){
       const pos = getCaretOffset(body);
@@ -2197,9 +2356,12 @@
         if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
         if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
       }
+      if (e.key === 'Escape' && findBarEl){ e.preventDefault(); closeFindBar(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey){ e.preventDefault(); redo(); return; }
       if ((e.ctrlKey || e.metaKey) && e.key === 'y'){ e.preventDefault(); redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f'){ e.preventDefault(); openFindBar(false); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h'){ e.preventDefault(); openFindBar(true); return; }
       if (e.key === 'Enter'){
         e.preventDefault();
         if (rawMode){
@@ -2364,6 +2526,7 @@
               'Added: click a tag in the sidebar to filter notes',
               'Added: word and character count visible in editor footer',
               'Added: undo/redo support (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)',
+              'Added: find and replace in editor (Ctrl+F / Ctrl+H)',
             ],
           },
         ],
