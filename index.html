@@ -339,6 +339,57 @@
     cursor:pointer;
   }
   .folder-select:focus{ outline:1px solid var(--accent); }
+  .tags-header{
+    display:flex;
+    align-items:center;
+    padding:.45rem .8rem .3rem;
+    margin-top:.4rem;
+    border-top:1px solid var(--line);
+    font-size:.68rem;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--text-dim);
+  }
+  .tag-item{
+    display:flex;
+    align-items:center;
+    padding:.28rem .8rem;
+    cursor:pointer;
+    font-size:.82rem;
+    color:var(--text-dim);
+    gap:.4rem;
+  }
+  .tag-item:hover{ background:var(--panel-2); color:var(--text); }
+  .tag-item.active{ color:var(--accent); background:var(--panel-2); }
+  .tag-item .tag-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-item .tag-count{
+    font-size:.65rem;
+    color:var(--text-dim);
+    background:var(--panel-2);
+    padding:.05rem .35rem;
+    border-radius:8px;
+    line-height:1;
+  }
+  .tag-item.active .tag-count{ background:var(--accent-dim); color:var(--accent); }
+  .folder-item .folder-icon-btn{
+    background:none; border:none; cursor:pointer;
+    font-size:.85rem; padding:0; line-height:1;
+    flex-shrink:0; width:1.2rem; text-align:center;
+  }
+  .folder-item .folder-icon-btn:hover{ opacity:.7; }
+  .icon-picker{
+    position:absolute; z-index:200;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:4px; padding:.3rem;
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:.15rem;
+    box-shadow:0 4px 12px rgba(0,0,0,.3);
+  }
+  .icon-picker button{
+    background:none; border:1px solid transparent; cursor:pointer;
+    font-size:1rem; padding:.2rem; line-height:1; border-radius:3px;
+    text-align:center;
+  }
+  .icon-picker button:hover{ border-color:var(--accent); background:var(--panel-2); }
 
   /* view tabs */
   .note-panel-header{
@@ -409,6 +460,16 @@
     font-size:.85rem;
   }
   .editor-header .pin-toggle.on{ color:var(--accent); border-color:var(--accent); }
+  .find-bar{ display:flex; flex-direction:column; gap:.3rem; padding:.5rem 1.2rem; border-bottom:1px solid var(--line); background:var(--panel); }
+  .find-row{ display:flex; align-items:center; gap:.4rem; }
+  .find-input, .find-replace-input{ flex:1; font-family:inherit; font-size:.82rem; background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:.3rem .5rem; border-radius:3px; outline:none; }
+  .find-input:focus, .find-replace-input:focus{ border-color:var(--accent); }
+  .find-bar button{ background:none; border:1px solid var(--line); border-radius:3px; color:var(--text-dim); padding:.25rem .4rem; cursor:pointer; font-size:.75rem; }
+  .find-bar button:hover{ color:var(--text); border-color:var(--text-dim); }
+  .find-info{ font-size:.7rem; color:var(--text-dim); min-width:3rem; text-align:center; }
+  .find-replace-row{ padding-top:.3rem; border-top:1px solid var(--line); }
+  .body mark.find-hl{ background:var(--accent-dim); color:var(--text); border-radius:2px; padding:0; }
+  .body mark.find-current{ background:var(--accent); color:var(--panel); }
   .editor-meta{
     padding:.3rem 1.2rem 0;
     color:var(--text-dim);
@@ -1050,7 +1111,8 @@
   body.focus-mode .editor-meta,
   body.focus-mode .editor-tags,
   body.focus-mode .images-container,
-  body.focus-mode .color-row{opacity:0;height:0;overflow:hidden;padding:0;margin:0;border:none;pointer-events:none;min-height:0}
+  body.focus-mode .color-row,
+  body.focus-mode .find-bar{opacity:0;height:0;overflow:hidden;padding:0;margin:0;border:none;pointer-events:none;min-height:0}
   /* keep an exit path out of focus mode (esp. on touch devices with no Escape key) */
   body.focus-mode .mobile-back-btn,
   body.focus-mode .focus-toggle{opacity:1;height:auto;overflow:visible;pointer-events:auto}
@@ -1059,6 +1121,7 @@
   body.focus-mode .body .lm-line:not(.lm-line-active){opacity:.2;transition:opacity .25s}
   .focus-count{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);font-size:.7rem;color:var(--text-dim);opacity:0;pointer-events:none;transition:opacity .4s;z-index:50;font-family:'PP Neue Montreal',sans-serif}
   body.focus-mode .focus-count{opacity:.5}
+  .editor-footer{padding:.3rem .8rem;font-size:.68rem;color:var(--text-dim);border-top:1px solid var(--line);text-align:right}
 
   /* #2 spring micro-interactions */
   button{transition:transform .12s ease, border-color .2s, color .2s, background .2s}
@@ -1134,6 +1197,8 @@
       <button id="addFolderBtn" title="new folder">+</button>
     </div>
     <div id="foldersList"></div>
+    <div class="tags-header"><span>tags</span></div>
+    <div id="tagsList"></div>
   </div>
   <div class="panel-resize" id="folderResize"></div>
   <div class="note-panel" id="notePanel">
@@ -1159,7 +1224,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.5.3';
+    const APP_VERSION = '1.6.0';
   const DEV = false;
   const DB_NAME = 'minote-db';
   const STORE = 'notes';
@@ -1347,9 +1412,14 @@
   let folders = [];
   let activeId = null;
   let activeFolderId = null;
+  let activeTag = null;
   let filter = '';
   let imageFilter = false;
   let view = 'active';
+  let findBarEl = null;
+  let findMatches = [];
+  let findIdx = -1;
+  let currentFindTerm = '';
 
   function uid(){
     return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -1360,6 +1430,9 @@
     return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) +
            ' ' + d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
   }
+
+  const FOLDER_ICONS = ['📁','📂','📋','📝','⭐','💼','🏠','📚','🔖','🏷️','💡','🎯','📅','📊','🎨','🔧','🧠','🌐','💻','📷'];
+  let openIconPicker = null;
 
   function renderFolders(){
     const list = document.getElementById('foldersList');
@@ -1452,10 +1525,80 @@
         renderIndex();
       });
 
-      item.append(nameSpan, editBtn, delBtn);
+      const iconBtn = document.createElement('button');
+      iconBtn.className = 'folder-icon-btn';
+      iconBtn.textContent = f.icon || '\uD83D\uDCC1';
+      iconBtn.title = 'change icon';
+      iconBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (openIconPicker){ openIconPicker.remove(); openIconPicker = null; }
+        const picker = document.createElement('div');
+        picker.className = 'icon-picker';
+        FOLDER_ICONS.forEach(ic => {
+          const btn = document.createElement('button');
+          btn.textContent = ic;
+          btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            f.icon = ic;
+            putFolder(f);
+            iconBtn.textContent = ic;
+            picker.remove();
+            openIconPicker = null;
+            markDirty();
+          });
+          picker.append(btn);
+        });
+        item.style.position = 'relative';
+        picker.style.top = '100%';
+        picker.style.left = '0';
+        item.append(picker);
+        openIconPicker = picker;
+        const closePicker = (ev) => {
+          if (!picker.contains(ev.target)){
+            picker.remove();
+            openIconPicker = null;
+            document.removeEventListener('click', closePicker);
+          }
+        };
+        setTimeout(() => document.addEventListener('click', closePicker), 0);
+      });
+
+      item.append(iconBtn, nameSpan, editBtn, delBtn);
       item.addEventListener('click', () => {
         activeFolderId = f.id;
         renderFolders();
+        renderIndex();
+      });
+      list.append(item);
+    });
+  }
+
+  function allTags(){
+    const map = {};
+    notes.forEach(n => {
+      if ((n.status || 'active') !== 'active') return;
+      (n.tags || []).forEach(t => { map[t] = (map[t] || 0) + 1; });
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }
+
+  function renderTagsList(){
+    const list = document.getElementById('tagsList');
+    list.innerHTML = '';
+    const tags = allTags();
+    tags.forEach(([tag, count]) => {
+      const item = document.createElement('div');
+      item.className = 'tag-item' + (activeTag === tag ? ' active' : '');
+      const name = document.createElement('span');
+      name.className = 'tag-name';
+      name.textContent = tag;
+      const countEl = document.createElement('span');
+      countEl.className = 'tag-count';
+      countEl.textContent = count;
+      item.append(name, countEl);
+      item.addEventListener('click', () => {
+        activeTag = activeTag === tag ? null : tag;
+        renderTagsList();
         renderIndex();
       });
       list.append(item);
@@ -1471,12 +1614,14 @@
         if (activeFolderId === '__none__') return !n.folderId;
         return n.folderId === activeFolderId;
       })
+      .filter(n => !activeTag || (n.tags || []).includes(activeTag))
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
       .filter(n => !imageFilter || (n.images && n.images.length))
       .sort((a,b) => (b.pinned - a.pinned) || (b.updated - a.updated));
   }
 
   function renderIndex(){
+    renderTagsList();
     const list = visibleNotes();
     entriesEl.innerHTML = '';
 
@@ -1499,7 +1644,8 @@
       num.textContent = String(i + 1).padStart(2, '0');
       const fIcon = document.createElement('div');
       fIcon.className = 'folder-icon';
-      fIcon.textContent = '\u{1F4C1}';
+      const fObj = n.folderId ? folders.find(ff => ff.id === n.folderId) : null;
+      fIcon.textContent = fObj ? (fObj.icon || '\uD83D\uDCC1') : '\uD83D\uDCC1';
       if (!n.folderId) fIcon.style.visibility = 'hidden';
       numCol.append(num, fIcon);
 
@@ -1587,7 +1733,38 @@
     rawMode = false;
     const n = notes.find(x => x.id === activeId);
     editorPanel.innerHTML = '';
+    findBarEl = null;
+    findMatches = [];
+    findIdx = -1;
+    currentFindTerm = '';
     updateMobileView();
+
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_UNDO = 50;
+    let preInputBody = null, preInputCaret = 0;
+
+    function pushUndo(){
+      undoStack.push({ body: n.body, caret: getCaretOffset(body) });
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      redoStack.length = 0;
+    }
+    function undo(){
+      if (!undoStack.length) return;
+      redoStack.push({ body: n.body, caret: getCaretOffset(body) });
+      const prev = undoStack.pop();
+      n.body = prev.body;
+      applyBodyEdit(prev.caret);
+      scheduleSave();
+    }
+    function redo(){
+      if (!redoStack.length) return;
+      undoStack.push({ body: n.body, caret: getCaretOffset(body) });
+      const next = redoStack.pop();
+      n.body = next.body;
+      applyBodyEdit(next.caret);
+      scheduleSave();
+    }
 
     if (!n){
       const empty = document.createElement('div');
@@ -1810,7 +1987,7 @@
         renderIndex();
         put(n).catch(err => console.error('failed to save note', err));
         markDirty();
-        if (document.body.classList.contains('focus-mode')) updateFocusCount();
+        updateFocusCount();
       }, 400);
       _pendingSaves.set(n.id, { timer: debounce, note: n });
     }
@@ -1820,6 +1997,10 @@
     let composing = false, pendingBodyEdit = false;
     body.addEventListener('beforeinput', (e) => {
       if (rawMode) return;
+      if (e.inputType.startsWith('delete')){
+        preInputBody = n.body;
+        preInputCaret = getCaretOffset(body);
+      }
       if (e.inputType === 'insertText' && e.data != null){
         e.preventDefault();
         const start = getCaretOffset(body);
@@ -1832,6 +2013,7 @@
           pre.setEnd(range.endContainer, range.endOffset);
           end = nodeToPlainText(pre.cloneContents()).length;
         }
+        pushUndo();
         n.body = n.body.slice(0, start) + e.data + n.body.slice(end);
         applyBodyEdit(start + e.data.length);
         pendingBodyEdit = true;
@@ -1845,12 +2027,153 @@
       updateActiveLine();
       scheduleSave();
       slashUpdate();
+      if (findBarEl && currentFindTerm) highlightMatches(currentFindTerm);
     }
     function refreshBody(){
       applyBodyEdit(getCaretOffset(body));
     }
+    function clearHighlights(){
+      if (!body) return;
+      body.querySelectorAll('mark.find-hl').forEach(m => {
+        const t = document.createTextNode(m.textContent);
+        m.parentNode.replaceChild(t, m);
+      });
+      if (body.normalize) body.normalize();
+      findMatches = [];
+      findIdx = -1;
+    }
+    function highlightMatches(term){
+      clearHighlights();
+      currentFindTerm = term;
+      if (!term || !body) { updateFindInfo(); return; }
+      const lowerTerm = term.toLowerCase();
+      const textNodes = [];
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+      let nd;
+      while (nd = walker.nextNode()) textNodes.push(nd);
+      let plainOffset = 0;
+      for (const tn of textNodes){
+        const text = tn.nodeValue;
+        const lowerText = text.toLowerCase();
+        if (!lowerText.includes(lowerTerm)) { plainOffset += text.length; continue; }
+        const frag = document.createDocumentFragment();
+        let lastIdx = 0, idx;
+        while ((idx = lowerText.indexOf(lowerTerm, lastIdx)) !== -1){
+          if (idx > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, idx)));
+          const mark = document.createElement('mark');
+          mark.className = 'find-hl';
+          mark.textContent = text.slice(idx, idx + term.length);
+          frag.appendChild(mark);
+          findMatches.push({ start: plainOffset + idx, end: plainOffset + idx + term.length });
+          lastIdx = idx + term.length;
+        }
+        if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        plainOffset += text.length;
+        tn.parentNode.replaceChild(frag, tn);
+      }
+      if (findMatches.length && findIdx < 0) findIdx = 0;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function updateFindInfo(){
+      if (!findBarEl) return;
+      const info = findBarEl.querySelector('.find-info');
+      if (info) info.textContent = findMatches.length ? (findIdx + 1) + '/' + findMatches.length : '0/0';
+    }
+    function updateFindCurrent(){
+      if (!body) return;
+      const marks = body.querySelectorAll('mark.find-hl');
+      marks.forEach((m, i) => m.classList.toggle('find-current', i === findIdx));
+      if (marks[findIdx]) marks[findIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    function findNext(){
+      if (!findMatches.length) return;
+      findIdx = (findIdx + 1) % findMatches.length;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function findPrev(){
+      if (!findMatches.length) return;
+      findIdx = (findIdx - 1 + findMatches.length) % findMatches.length;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function replaceCurrent(replacement){
+      if (findIdx < 0 || findIdx >= findMatches.length || !currentFindTerm) return;
+      pushUndo();
+      const m = findMatches[findIdx];
+      n.body = n.body.slice(0, m.start) + replacement + n.body.slice(m.end);
+      applyBodyEdit(m.start + replacement.length);
+      highlightMatches(currentFindTerm);
+      if (findIdx >= findMatches.length) findIdx = findMatches.length - 1;
+      updateFindInfo();
+      updateFindCurrent();
+    }
+    function replaceAllMatches(replacement){
+      if (!currentFindTerm || !findMatches.length) return;
+      pushUndo();
+      const regex = new RegExp(currentFindTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      n.body = n.body.replace(regex, replacement);
+      applyBodyEdit(0);
+      highlightMatches(currentFindTerm);
+      updateFindInfo();
+    }
+    function openFindBar(replaceMode){
+      if (findBarEl){ findBarEl.querySelector('.find-input').focus(); return; }
+      findBarEl = document.createElement('div');
+      findBarEl.className = 'find-bar';
+      findBarEl.innerHTML = `
+        <div class="find-row">
+          <input type="text" class="find-input" placeholder="find…" spellcheck="false">
+          <span class="find-info">0/0</span>
+          <button class="find-prev" title="previous">▲</button>
+          <button class="find-next" title="next">▼</button>
+          <button class="find-replace-toggle" title="replace">⌕</button>
+          <button class="find-close" title="close">✕</button>
+        </div>
+        <div class="find-row find-replace-row"${replaceMode ? '' : ' hidden'}>
+          <input type="text" class="find-replace-input" placeholder="replace…" spellcheck="false">
+          <button class="find-replace-one">Replace</button>
+          <button class="find-replace-all">All</button>
+        </div>`;
+      const header = editorPanel.querySelector('.editor-header');
+      if (header) header.after(findBarEl); else editorPanel.prepend(findBarEl);
+      const input = findBarEl.querySelector('.find-input');
+      const rInput = findBarEl.querySelector('.find-replace-input');
+      input.addEventListener('input', () => {
+        const q = input.value;
+        if (q) highlightMatches(q); else { clearHighlights(); currentFindTerm = ''; }
+        updateFindInfo();
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); if (e.shiftKey) findPrev(); else findNext(); }
+        if (e.key === 'Escape'){ e.preventDefault(); closeFindBar(); }
+        e.stopPropagation();
+      });
+      rInput.addEventListener('keydown', e => {
+        if (e.key === 'Escape'){ e.preventDefault(); closeFindBar(); }
+        e.stopPropagation();
+      });
+      findBarEl.querySelector('.find-prev').addEventListener('click', findPrev);
+      findBarEl.querySelector('.find-next').addEventListener('click', findNext);
+      findBarEl.querySelector('.find-close').addEventListener('click', closeFindBar);
+      findBarEl.querySelector('.find-replace-toggle').addEventListener('click', () => {
+        const rr = findBarEl.querySelector('.find-replace-row');
+        rr.hidden = !rr.hidden;
+        if (!rr.hidden) rInput.focus();
+      });
+      findBarEl.querySelector('.find-replace-one').addEventListener('click', () => replaceCurrent(rInput.value));
+      findBarEl.querySelector('.find-replace-all').addEventListener('click', () => replaceAllMatches(rInput.value));
+      input.focus();
+    }
+    function closeFindBar(){
+      clearHighlights();
+      currentFindTerm = '';
+      if (findBarEl){ findBarEl.remove(); findBarEl = null; }
+    }
     function insertTextAtCaret(text){
       const pos = getCaretOffset(body);
+      pushUndo();
       n.body = n.body.slice(0, pos) + text + n.body.slice(pos);
       applyBodyEdit(pos + text.length);
     }
@@ -1872,6 +2195,7 @@
 
       if (content !== null && content.trim() === ''){
         // empty list item: pressing Enter again clears the marker instead of continuing the list
+        pushUndo();
         n.body = n.body.slice(0, lineStart) + n.body.slice(lineEnd);
         applyBodyEdit(lineStart);
         return;
@@ -1884,12 +2208,18 @@
       insertTextAtCaret('\n' + continuation);
     }
     body.addEventListener('compositionstart', () => { composing = true; });
-    body.addEventListener('compositionend', () => { composing = false; n.body = nodeToPlainText(body); refreshBody(); });
+    body.addEventListener('compositionend', () => { composing = false; pushUndo(); n.body = nodeToPlainText(body); refreshBody(); });
     body.addEventListener('keyup', updateActiveLine);
     body.addEventListener('mouseup', updateActiveLine);
     body.addEventListener('focus', updateActiveLine);
     body.addEventListener('input', () => {
       if (pendingBodyEdit) { pendingBodyEdit = false; return; }
+      if (preInputBody !== null){
+        undoStack.push({ body: preInputBody, caret: preInputCaret });
+        if (undoStack.length > MAX_UNDO) undoStack.shift();
+        redoStack.length = 0;
+        preInputBody = null;
+      }
       n.body = nodeToPlainText(body);
       if (composing){ scheduleSave(); return; }
       if (rawMode){ body.classList.toggle('is-empty', !n.body); scheduleSave(); return; }
@@ -2026,10 +2356,17 @@
         if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
         if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
       }
+      if (e.key === 'Escape' && findBarEl){ e.preventDefault(); closeFindBar(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey){ e.preventDefault(); redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y'){ e.preventDefault(); redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f'){ e.preventDefault(); openFindBar(false); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h'){ e.preventDefault(); openFindBar(true); return; }
       if (e.key === 'Enter'){
         e.preventDefault();
         if (rawMode){
           const pos = getCaretOffset(body);
+          pushUndo();
           n.body = n.body.slice(0, pos) + '\n' + n.body.slice(pos);
           body.innerHTML = mdEscape(n.body);
           body.classList.toggle('is-empty', !n.body);
@@ -2100,6 +2437,7 @@
           e.preventDefault();
           const text = e.clipboardData.getData('text/plain');
           const pos = getCaretOffset(body);
+          pushUndo();
           n.body = n.body.slice(0, pos) + text + n.body.slice(pos);
           body.innerHTML = mdEscape(n.body);
           body.classList.toggle('is-empty', !n.body);
@@ -2113,8 +2451,12 @@
     });
 
     editorPanel.append(header, tagsRow, colorRow, meta, body, imagesContainer);
+    const footer = document.createElement('div');
+    footer.className = 'editor-footer';
+    footer.id = 'editorFooter';
+    editorPanel.append(footer);
     body.focus();
-    if (document.body.classList.contains('focus-mode')) updateFocusCount();
+    updateFocusCount();
   }
 
   document.getElementById('addBtn').addEventListener('click', () => {
@@ -2141,7 +2483,7 @@
       committed = true;
       const val = input.value.trim();
       if (val){
-        const f = { id: uid(), name: val };
+        const f = { id: uid(), name: val, icon: '\uD83D\uDCC1' };
         folders.push(f);
         putFolder(f);
         markDirty();
@@ -2160,6 +2502,7 @@
 
   function setView(v){
     view = v;
+    activeTag = null;
     document.querySelectorAll('.view-tabs button').forEach(b => b.classList.remove('active'));
     document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).classList.add('active');
     activeId = null;
@@ -2172,6 +2515,22 @@
 
   document.getElementById('changelogBtn').addEventListener('click', () => {
     const VERSIONS = [
+      {
+        label: '1.6.0',
+        sections: [
+          {
+            heading: '',
+            items: [
+              'Added: folder icons — choose from a predefined icon set',
+              'Added: tags section in the sidebar with note counts',
+              'Added: click a tag in the sidebar to filter notes',
+              'Added: word and character count visible in editor footer',
+              'Added: undo/redo support (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)',
+              'Added: find and replace in editor (Ctrl+F / Ctrl+H)',
+            ],
+          },
+        ],
+      },
       {
         label: '1.5.3',
         sections: [
@@ -2813,7 +3172,7 @@
       return x;
     };
     const remoteNotes = (d.notes || []).map(norm);
-    const remoteFolders = (d.folders || []).map(f => ({ id: f.id, name: f.name || 'folder' }));
+    const remoteFolders = (d.folders || []).map(f => ({ id: f.id, name: f.name || 'folder', icon: f.icon || '\uD83D\uDCC1' }));
     let conflicts = 0;
     if (merge){
       const mergeById = (localArr, remoteArr) => {
@@ -3042,6 +3401,7 @@
       notes = await getAll();
       folders = await getAllFolders();
       notes.forEach(n => { if (n.body === undefined) n.body = n.text || ''; if (n.title === undefined) n.title = ''; if (n.tags === undefined) n.tags = []; if (n.images === undefined) n.images = []; if (n.folderId === undefined) n.folderId = null; if (n.status === undefined) n.status = 'active'; if (n.color === undefined) n.color = null; });
+      folders.forEach(f => { if (f.icon === undefined) f.icon = '\uD83D\uDCC1'; });
     } catch (err){
       console.error('IndexedDB unavailable, notes will not persist between reloads', err);
       notes = [];
@@ -3113,7 +3473,7 @@
     ];
     folders.forEach(f => {
       actions.push({
-        id:'f-'+f.id, label:'Folder: '+mdEscape(f.name), ico:'\u25B8',
+        id:'f-'+f.id, label:(f.icon||'\uD83D\uDCC1')+' '+mdEscape(f.name), ico:'\u25B8',
         exec:() => { activeFolderId = f.id; renderFolders(); renderIndex(); }
       });
     });
@@ -3180,8 +3540,11 @@
     const text = stripMarkdown(n.body).replace(/\s+/g,' ').trim();
     const words = text ? text.split(/\s+/).length : 0;
     const chars = text.length;
+    const countStr = words + ' words \u00b7 ' + chars + ' chars';
     const el = document.getElementById('focusCount');
-    if (el) el.textContent = words + ' words \u00b7 ' + chars + ' chars';
+    if (el) el.textContent = countStr;
+    const el2 = document.getElementById('editorFooter');
+    if (el2) el2.textContent = countStr;
   }
 
   if ('serviceWorker' in navigator){
