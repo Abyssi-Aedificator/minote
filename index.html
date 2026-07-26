@@ -1720,6 +1720,33 @@
     editorPanel.innerHTML = '';
     updateMobileView();
 
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_UNDO = 50;
+    let preInputBody = null, preInputCaret = 0;
+
+    function pushUndo(){
+      undoStack.push({ body: n.body, caret: getCaretOffset(body) });
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      redoStack.length = 0;
+    }
+    function undo(){
+      if (!undoStack.length) return;
+      redoStack.push({ body: n.body, caret: getCaretOffset(body) });
+      const prev = undoStack.pop();
+      n.body = prev.body;
+      applyBodyEdit(prev.caret);
+      scheduleSave();
+    }
+    function redo(){
+      if (!redoStack.length) return;
+      undoStack.push({ body: n.body, caret: getCaretOffset(body) });
+      const next = redoStack.pop();
+      n.body = next.body;
+      applyBodyEdit(next.caret);
+      scheduleSave();
+    }
+
     if (!n){
       const empty = document.createElement('div');
       empty.className = 'no-selection';
@@ -1951,6 +1978,10 @@
     let composing = false, pendingBodyEdit = false;
     body.addEventListener('beforeinput', (e) => {
       if (rawMode) return;
+      if (e.inputType.startsWith('delete')){
+        preInputBody = n.body;
+        preInputCaret = getCaretOffset(body);
+      }
       if (e.inputType === 'insertText' && e.data != null){
         e.preventDefault();
         const start = getCaretOffset(body);
@@ -1963,6 +1994,7 @@
           pre.setEnd(range.endContainer, range.endOffset);
           end = nodeToPlainText(pre.cloneContents()).length;
         }
+        pushUndo();
         n.body = n.body.slice(0, start) + e.data + n.body.slice(end);
         applyBodyEdit(start + e.data.length);
         pendingBodyEdit = true;
@@ -1982,6 +2014,7 @@
     }
     function insertTextAtCaret(text){
       const pos = getCaretOffset(body);
+      pushUndo();
       n.body = n.body.slice(0, pos) + text + n.body.slice(pos);
       applyBodyEdit(pos + text.length);
     }
@@ -2003,6 +2036,7 @@
 
       if (content !== null && content.trim() === ''){
         // empty list item: pressing Enter again clears the marker instead of continuing the list
+        pushUndo();
         n.body = n.body.slice(0, lineStart) + n.body.slice(lineEnd);
         applyBodyEdit(lineStart);
         return;
@@ -2015,12 +2049,18 @@
       insertTextAtCaret('\n' + continuation);
     }
     body.addEventListener('compositionstart', () => { composing = true; });
-    body.addEventListener('compositionend', () => { composing = false; n.body = nodeToPlainText(body); refreshBody(); });
+    body.addEventListener('compositionend', () => { composing = false; pushUndo(); n.body = nodeToPlainText(body); refreshBody(); });
     body.addEventListener('keyup', updateActiveLine);
     body.addEventListener('mouseup', updateActiveLine);
     body.addEventListener('focus', updateActiveLine);
     body.addEventListener('input', () => {
       if (pendingBodyEdit) { pendingBodyEdit = false; return; }
+      if (preInputBody !== null){
+        undoStack.push({ body: preInputBody, caret: preInputCaret });
+        if (undoStack.length > MAX_UNDO) undoStack.shift();
+        redoStack.length = 0;
+        preInputBody = null;
+      }
       n.body = nodeToPlainText(body);
       if (composing){ scheduleSave(); return; }
       if (rawMode){ body.classList.toggle('is-empty', !n.body); scheduleSave(); return; }
@@ -2157,10 +2197,14 @@
         if (e.key === 'Enter' || e.key === 'Tab'){ if (items.length){ e.preventDefault(); slashInsert(items[slashSel]); } else slashClose(); return; }
         if (e.key === 'Escape'){ e.preventDefault(); slashClose(); return; }
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey){ e.preventDefault(); redo(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y'){ e.preventDefault(); redo(); return; }
       if (e.key === 'Enter'){
         e.preventDefault();
         if (rawMode){
           const pos = getCaretOffset(body);
+          pushUndo();
           n.body = n.body.slice(0, pos) + '\n' + n.body.slice(pos);
           body.innerHTML = mdEscape(n.body);
           body.classList.toggle('is-empty', !n.body);
@@ -2231,6 +2275,7 @@
           e.preventDefault();
           const text = e.clipboardData.getData('text/plain');
           const pos = getCaretOffset(body);
+          pushUndo();
           n.body = n.body.slice(0, pos) + text + n.body.slice(pos);
           body.innerHTML = mdEscape(n.body);
           body.classList.toggle('is-empty', !n.body);
@@ -2318,6 +2363,7 @@
               'Added: tags section in the sidebar with note counts',
               'Added: click a tag in the sidebar to filter notes',
               'Added: word and character count visible in editor footer',
+              'Added: undo/redo support (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)',
             ],
           },
         ],
