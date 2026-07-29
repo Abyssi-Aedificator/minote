@@ -35,8 +35,8 @@ Run this after every JS change.
 
 - `APP_VERSION` constant (top of `<script>`) — current version string
 - `DEV` constant — toggles dev banner; set to `false` before release
-- `VERSIONS` array (JS) — changelog entries rendered by the changelog modal
-- Commits: `Version X.Y.Z` for version bumps, descriptive messages for features/fixes
+- `changelog.txt` — changelog entries (plain text, most recent version first)
+- Commits: one commit per fix/feature (descriptive message, no version number). `Version X.Y.Z` commit for version bumps.
 - The dev banner must never be mentioned in the changelog
 
 ## Data model

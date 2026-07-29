@@ -757,80 +757,24 @@
   }
   .dialog button.danger:hover{ background:var(--danger); color:#fff; }
 
-  .changelog-panel{
-    position:relative;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:5px;
-    padding:1.8rem 2rem;
-    width:520px;
-    max-width:calc(100vw - 2.4rem);
-    height:min(80vh, 700px);
-    display:flex;
-    flex-direction:column;
-  }
-  .changelog-panel .changelog-scroll{
-    flex:1;
-    overflow-y:auto;
-    margin:0 -2rem;
-    padding:0 2rem;
-  }
-
   /* themed scrollbars */
-  .changelog-scroll, .settings-scroll, .folder-panel, .note-panel{
+  .settings-scroll, .folder-panel, .note-panel{
     scrollbar-width:thin;
     scrollbar-color:var(--line) transparent;
   }
-  .changelog-scroll::-webkit-scrollbar, .settings-scroll::-webkit-scrollbar, .folder-panel::-webkit-scrollbar, .note-panel::-webkit-scrollbar{
+  .settings-scroll::-webkit-scrollbar, .folder-panel::-webkit-scrollbar, .note-panel::-webkit-scrollbar{
     width:8px;
   }
-  .changelog-scroll::-webkit-scrollbar-track, .settings-scroll::-webkit-scrollbar-track, .folder-panel::-webkit-scrollbar-track, .note-panel::-webkit-scrollbar-track{
+  .settings-scroll::-webkit-scrollbar-track, .folder-panel::-webkit-scrollbar-track, .note-panel::-webkit-scrollbar-track{
     background:transparent;
   }
-  .changelog-scroll::-webkit-scrollbar-thumb, .settings-scroll::-webkit-scrollbar-thumb, .folder-panel::-webkit-scrollbar-thumb, .note-panel::-webkit-scrollbar-thumb{
+  .settings-scroll::-webkit-scrollbar-thumb, .folder-panel::-webkit-scrollbar-thumb, .note-panel::-webkit-scrollbar-thumb{
     background:var(--line);
     border-radius:4px;
   }
-  .changelog-scroll::-webkit-scrollbar-thumb:hover, .settings-scroll::-webkit-scrollbar-thumb:hover, .folder-panel::-webkit-scrollbar-thumb:hover, .note-panel::-webkit-scrollbar-thumb:hover{
+  .settings-scroll::-webkit-scrollbar-thumb:hover, .folder-panel::-webkit-scrollbar-thumb:hover, .note-panel::-webkit-scrollbar-thumb:hover{
     background:var(--accent-dim);
   }
-  .changelog-panel h2{
-    margin:0 0 1rem;
-    font-size:1rem;
-    font-weight:600;
-    color:var(--text);
-    letter-spacing:.04em;
-  }
-  .changelog-panel .version-label{
-    font-size:.85rem;
-    font-weight:600;
-    color:var(--accent);
-    margin:1.2rem 0 .6rem;
-    padding-bottom:.3rem;
-    border-bottom:1px solid var(--line);
-  }
-  .changelog-panel .version-label:first-of-type{ margin-top:0; }
-  .changelog-panel ul{
-    margin:0 0 .6rem;
-    padding-left:1.2rem;
-    color:var(--text-dim);
-    font-size:.82rem;
-    line-height:1.6;
-  }
-  .changelog-panel ul li{ margin-bottom:.2rem; }
-  .changelog-panel .close-btn{
-    position:absolute;
-    top:.7rem;
-    right:.8rem;
-    background:none;
-    border:none;
-    color:var(--text-dim);
-    cursor:pointer;
-    font-size:.85rem;
-    padding:.1rem .25rem;
-    line-height:1;
-  }
-  .changelog-panel .close-btn:hover{ color:var(--accent); }
 
   .settings-panel{
     position:relative;
@@ -1185,7 +1129,6 @@
   </div>
   <div class="topbar-right">
     <button id="syncBtn" style="display:none"><span class="sync-ico">⟳</span> sync</button>
-    <button id="changelogBtn">changelog</button>
     <button id="settingsBtn">settings</button>
   </div>
 </div>
@@ -1224,9 +1167,10 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.0';
-  const DEV = false;
-  const DB_NAME = 'minote-db';
+    const APP_VERSION = '1.6.1';
+    const DEV = false;
+    if (!DEV) document.getElementById('devBanner').remove();
+    const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
   let db;
@@ -2043,6 +1987,7 @@
       findIdx = -1;
     }
     function highlightMatches(term){
+      const prevIdx = findIdx;
       clearHighlights();
       currentFindTerm = term;
       if (!term || !body) { updateFindInfo(); return; }
@@ -2071,7 +2016,10 @@
         plainOffset += text.length;
         tn.parentNode.replaceChild(frag, tn);
       }
-      if (findMatches.length && findIdx < 0) findIdx = 0;
+      if (findMatches.length){
+        if (prevIdx >= 0 && prevIdx < findMatches.length) findIdx = prevIdx;
+        else findIdx = 0;
+      }
       updateFindInfo();
       updateFindCurrent();
     }
@@ -2104,7 +2052,6 @@
       const m = findMatches[findIdx];
       n.body = n.body.slice(0, m.start) + replacement + n.body.slice(m.end);
       applyBodyEdit(m.start + replacement.length);
-      highlightMatches(currentFindTerm);
       if (findIdx >= findMatches.length) findIdx = findMatches.length - 1;
       updateFindInfo();
       updateFindCurrent();
@@ -2115,7 +2062,6 @@
       const regex = new RegExp(currentFindTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       n.body = n.body.replace(regex, replacement);
       applyBodyEdit(0);
-      highlightMatches(currentFindTerm);
       updateFindInfo();
     }
     function openFindBar(replaceMode){
@@ -2513,188 +2459,6 @@
   document.getElementById('viewArchived').addEventListener('click', () => setView('archived'));
   document.getElementById('viewTrashed').addEventListener('click', () => setView('trashed'));
 
-  document.getElementById('changelogBtn').addEventListener('click', () => {
-    const VERSIONS = [
-      {
-        label: '1.6.0',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Added: folder icons — choose from a predefined icon set',
-              'Added: tags section in the sidebar with note counts',
-              'Added: click a tag in the sidebar to filter notes',
-              'Added: word and character count visible in editor footer',
-              'Added: undo/redo support (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)',
-              'Added: find and replace in editor (Ctrl+F / Ctrl+H)',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.5.3',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Added: three-panel layout with separate folder and note panels',
-              'Added: both panels are resizable by dragging the divider; widths persist across sessions',
-              'Added: mobile folder panel as slide-in overlay',
-              'Fixed: search bar right edge aligns with note panel border',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.5.2',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Fixed: pressing Enter in plain-text (txt) mode no longer corrupts multi-line content on Chromium-based browsers',
-              'Fixed: pasting multi-line text in plain-text mode now correctly preserves line breaks',
-              'Fixed: entry list no longer jitters when selecting a note (border-left no longer shifts padding)',
-              'Fixed: empty-state message in archived/trash views now respects search and image filters',
-              'Fixed: tag names containing HTML are no longer interpreted as markup (XSS)',
-              'Fixed: folder names containing HTML are no longer interpreted as markup in the command palette (XSS)',
-              'Robustness: nodeToPlainText handles block elements as newline boundaries',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.5.1',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Fixed: pressing Enter in plain-text (txt) mode no longer corrupts multi-line content on Chromium-based browsers',
-              'Fixed: pasting multi-line text in plain-text mode now correctly preserves line breaks',
-              'Fixed: entry list no longer jitters when selecting a note (border-left no longer shifts padding)',
-              'Fixed: empty-state message in archived/trash views now respects search and image filters',
-              'Robustness: nodeToPlainText handles block elements as newline boundaries',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.5.0',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Toggle button (txt) in the editor header to switch between rendered markdown and raw plain-text editing',
-              'Plain-text (txt) mode fully wired: caret and placeholder are preserved, paste and slash commands no longer break it, and it resets when switching notes',
-              'New notes created while viewing "no folder" are no longer hidden or given a phantom folder',
-              'Folder rename Escape now cancels instead of committing',
-              'Swipe gestures no longer trigger a stray tap that opens the wrong note',
-              'Command palette: Export and Import backup work directly, and single-key shortcuts (n, t, f, s, 1, 2, 3, e, i) are now active',
-              'Dropbox sync now merges by id (offline edits are preserved) with a conflict prompt, uploads on launch, and flushes pending saves on tab close',
-              'Focus mode keeps an on-screen exit on touch devices; accent colour now applies to the logo mark',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.4.1',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'New notes now automatically inherit the currently selected folder',
-              'Folder icon shown below the note number for notes that belong to a folder',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.4.0',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Typewriter / Focus Mode — full-screen distraction-free editing with centered text, dimmed non-active lines, and live word/character count at the bottom of the viewport',
-              'Spring-based micro-interactions on pin toggles, buttons, and colour swatches for a polished, tactile feel',
-              'Swipe gestures on mobile — swipe right to quickly pin a note, swipe left to archive or restore it',
-              'Command palette (Ctrl+K) — fuzzy-search palette for actions: new note, toggle theme, open settings, jump to folder, switch view, export backup, and toggle focus mode',
-              'Notes can now be assigned a colour; a colour dot appears in the note list and a colour picker is available in the editor header',
-              'Folder rename button — a pencil icon appears on hover next to each folder, offering an explicit rename entry alongside the existing double-click',
-              'Fixed: creating a folder no longer produces a duplicate entry due to the blur event firing after Enter',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.3.1',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Mobile topbar buttons (changelog, settings) moved above the search bar and aligned to the right',
-              'Theme system now supports Light, Dark, and System (follows OS preference) — browser chrome colour updates accordingly',
-              'Editor: typing with text selected now correctly replaces the selection instead of preserving it',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.3.0',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Full responsive layout — the app adapts to any screen size',
-              'Touch-friendly interaction with larger tap targets and swipe gestures',
-              'Optimised editor and note list for narrow screens',
-              'Bottom bar navigation replaces the sidebar on phones',
-              'Changelog reworked — all versions now visible in a single scrollable view instead of tabbed panels',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.2.0',
-        sections: [
-          {
-            heading: '',
-            items: [
-              'Notes now render live markdown as you type, instead of a separate edit/preview toggle',
-              'Markdown syntax (bold, headings, quotes, links, code fences, etc.) stays hidden until you put the cursor on that line',
-              'The note list preview snippet now shows plain text instead of raw markdown syntax',
-            ],
-          },
-        ],
-      },
-      {
-        label: '1.0.0',
-        sections: [
-          {
-            heading: '',
-            items: ['Full release'],
-          },
-        ],
-      },
-    ];
-
-    const overlay = document.createElement('div');
-    overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="changelog-panel">
-      <h2>Changelog</h2>
-      <div class="changelog-scroll">
-        ${VERSIONS.map(v => `
-          <div class="version-label">${v.label}</div>
-          ${v.sections.map(s => `
-            ${s.heading ? `<h3>${s.heading}</h3>` : ''}
-            <ul>${s.items.map(item => `<li>${item}</li>`).join('')}</ul>
-          `).join('')}
-        `).join('')}
-      </div>
-      <button class="close-btn">✕</button>
-    </div>`;
-    overlay.querySelector('.close-btn').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    document.body.append(overlay);
-  });
 
   const ACCENTS = {
     dark: [
@@ -3419,7 +3183,6 @@
       setTimeout(() => dropboxUpload(true), 1500);
     }
     checkVersionUpdate();
-    if (!DEV) document.getElementById('devBanner').remove();
   })();
 
   /* ---------- version change notification ---------- */
@@ -3431,15 +3194,10 @@
     if (!prev) return; // first visit — nothing is "new" yet
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
-    overlay.innerHTML = `<div class="dialog"><p>✨ minote was updated to <b>${APP_VERSION}</b>.<br>Check the changelog to see what's changed.</p><div class="buttons">
+    overlay.innerHTML = `<div class="dialog"><p>✨ minote was updated to <b>${APP_VERSION}</b>.</p><div class="buttons">
       <button class="primary">got it</button>
-      <button class="whats-new">what's new</button>
     </div></div>`;
     overlay.querySelector('.primary').addEventListener('click', () => overlay.remove());
-    overlay.querySelector('.whats-new').addEventListener('click', () => {
-      overlay.remove();
-      document.getElementById('changelogBtn').click();
-    });
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.append(overlay);
   }
