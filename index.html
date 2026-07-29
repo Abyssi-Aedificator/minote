@@ -2048,7 +2048,6 @@
       const m = findMatches[findIdx];
       n.body = n.body.slice(0, m.start) + replacement + n.body.slice(m.end);
       applyBodyEdit(m.start + replacement.length);
-      highlightMatches(currentFindTerm);
       if (findIdx >= findMatches.length) findIdx = findMatches.length - 1;
       updateFindInfo();
       updateFindCurrent();
@@ -2059,7 +2058,6 @@
       const regex = new RegExp(currentFindTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
       n.body = n.body.replace(regex, replacement);
       applyBodyEdit(0);
-      highlightMatches(currentFindTerm);
       updateFindInfo();
     }
     function openFindBar(replaceMode){
