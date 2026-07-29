@@ -1987,6 +1987,7 @@
       findIdx = -1;
     }
     function highlightMatches(term){
+      const prevIdx = findIdx;
       clearHighlights();
       currentFindTerm = term;
       if (!term || !body) { updateFindInfo(); return; }
@@ -2015,7 +2016,10 @@
         plainOffset += text.length;
         tn.parentNode.replaceChild(frag, tn);
       }
-      if (findMatches.length && findIdx < 0) findIdx = 0;
+      if (findMatches.length){
+        if (prevIdx >= 0 && prevIdx < findMatches.length) findIdx = prevIdx;
+        else findIdx = 0;
+      }
       updateFindInfo();
       updateFindCurrent();
     }
