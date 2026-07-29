@@ -1168,8 +1168,9 @@
 <script>
 (() => {
     const APP_VERSION = '1.6.1';
-  const DEV = false;
-  const DB_NAME = 'minote-db';
+    const DEV = false;
+    if (!DEV) document.getElementById('devBanner').remove();
+    const DB_NAME = 'minote-db';
   const STORE = 'notes';
   const FOLDER_STORE = 'folders';
   let db;
@@ -3180,7 +3181,6 @@
       setTimeout(() => dropboxUpload(true), 1500);
     }
     checkVersionUpdate();
-    if (!DEV) document.getElementById('devBanner').remove();
   })();
 
   /* ---------- version change notification ---------- */

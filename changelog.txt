@@ -1,6 +1,7 @@
 Version 1.6.1
   - Added: find and replace in editor (Ctrl+F / Ctrl+H)
   - Changed: changelog moved to changelog.txt (removed from in-app modal)
+  - Fixed: dev banner no longer flashes briefly on load when disabled
 
 Version 1.6.0
 - Added: folder icons — choose from a predefined icon set
