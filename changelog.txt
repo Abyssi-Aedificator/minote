@@ -2,6 +2,8 @@ Version 1.6.1
   - Added: find and replace in editor (Ctrl+F / Ctrl+H)
   - Changed: changelog moved to changelog.txt (removed from in-app modal)
   - Fixed: dev banner no longer flashes briefly on load when disabled
+  - Fixed: redundant re-highlight after replace (performance)
+  - Fixed: find match position no longer resets after editing the note body
 
 Version 1.6.0
 - Added: folder icons — choose from a predefined icon set
