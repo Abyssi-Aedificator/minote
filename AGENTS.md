@@ -37,6 +37,7 @@ Run this after every JS change.
 - `DEV` constant — toggles dev banner; set to `false` before release
 - `changelog.txt` — changelog entries (plain text, most recent version first)
 - Commits: one commit per fix/feature (descriptive message, no version number). `Version X.Y.Z` commit for version bumps.
+- Never push to origin
 - The dev banner must never be mentioned in the changelog
 
 ## Data model
