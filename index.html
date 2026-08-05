@@ -311,6 +311,15 @@
   .folder-item:hover{ background:var(--panel-2); color:var(--text); }
   .folder-item.active{ color:var(--accent); background:var(--panel-2); }
   .folder-item .folder-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .folder-count{
+    font-size:.65rem;
+    color:var(--text-dim);
+    background:var(--panel-2);
+    padding:.05rem .35rem;
+    border-radius:8px;
+    line-height:1;
+  }
+  .folder-item.active .folder-count{ background:var(--accent-dim); color:var(--accent); }
   .folder-item .folder-edit, .folder-item .folder-del{
     background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:.65rem; padding:0 .15rem; display:none;
   }
@@ -1385,13 +1394,17 @@
   function renderFolders(){
     const list = document.getElementById('foldersList');
     list.innerHTML = '';
+    const activeNotes = notes.filter(n => (n.status || 'active') === 'active');
 
     const allItem = document.createElement('div');
     allItem.className = 'folder-item' + (!activeFolderId ? ' active' : '');
     const allName = document.createElement('span');
     allName.className = 'folder-name';
     allName.textContent = 'all notes';
-    allItem.append(allName);
+    const allCount = document.createElement('span');
+    allCount.className = 'folder-count';
+    allCount.textContent = activeNotes.length;
+    allItem.append(allName, allCount);
     allItem.addEventListener('click', () => {
       activeFolderId = null;
       renderFolders();
@@ -1404,7 +1417,10 @@
     const noneName = document.createElement('span');
     noneName.className = 'folder-name';
     noneName.textContent = 'no folder';
-    noneItem.append(noneName);
+    const noneCount = document.createElement('span');
+    noneCount.className = 'folder-count';
+    noneCount.textContent = activeNotes.filter(n => !n.folderId).length;
+    noneItem.append(noneName, noneCount);
     noneItem.addEventListener('click', () => {
       activeFolderId = '__none__';
       renderFolders();
@@ -1511,7 +1527,11 @@
         setTimeout(() => document.addEventListener('click', closePicker), 0);
       });
 
-      item.append(iconBtn, nameSpan, editBtn, delBtn);
+      const folderCount = document.createElement('span');
+      folderCount.className = 'folder-count';
+      folderCount.textContent = activeNotes.filter(n => n.folderId === f.id).length;
+
+      item.append(iconBtn, nameSpan, folderCount, editBtn, delBtn);
       item.addEventListener('click', () => {
         activeFolderId = f.id;
         renderFolders();
