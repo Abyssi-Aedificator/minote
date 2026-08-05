@@ -1542,8 +1542,8 @@
   }
 
   const TAG_COLORS = ['#e8a23a','#4caf50','#42a5f5','#ab47bc','#ef5350','#26c6da','#ec407a','#ff7043','#9ccc65','#5c6bc0','#78909c','#bdbdbd'];
-  let tagColors = {};
-  try { tagColors = JSON.parse(localStorage.getItem('minote-tag-colors') || '{}'); } catch (err) {}
+  let tagColors = Object.create(null);
+  try { Object.assign(tagColors, JSON.parse(localStorage.getItem('minote-tag-colors') || '{}')); } catch (err) {}
   function getTagColor(tag){
     if (tagColors[tag]) return tagColors[tag];
     const used = new Set(Object.values(tagColors));
