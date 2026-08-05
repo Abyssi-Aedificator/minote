@@ -362,6 +362,10 @@
   .tag-item:hover{ background:var(--panel-2); color:var(--text); }
   .tag-item.active{ color:var(--accent); background:var(--panel-2); }
   .tag-item .tag-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-item .tag-dot{
+    width:.55rem; height:.55rem; border-radius:50%;
+    flex-shrink:0;
+  }
   .tag-item .tag-count{
     font-size:.65rem;
     color:var(--text-dim);
@@ -1517,6 +1521,19 @@
     });
   }
 
+  const TAG_COLORS = ['#e8a23a','#4caf50','#42a5f5','#ab47bc','#ef5350','#26c6da','#ec407a','#ff7043','#9ccc65','#5c6bc0','#78909c','#bdbdbd'];
+  let tagColors = {};
+  try { tagColors = JSON.parse(localStorage.getItem('minote-tag-colors') || '{}'); } catch (err) {}
+  function getTagColor(tag){
+    if (tagColors[tag]) return tagColors[tag];
+    const used = new Set(Object.values(tagColors));
+    const avail = TAG_COLORS.filter(c => !used.has(c));
+    const pool = avail.length ? avail : TAG_COLORS;
+    tagColors[tag] = pool[Math.floor(Math.random() * pool.length)];
+    try { localStorage.setItem('minote-tag-colors', JSON.stringify(tagColors)); } catch (err) {}
+    return tagColors[tag];
+  }
+
   function allTags(){
     const map = {};
     notes.forEach(n => {
@@ -1549,13 +1566,16 @@
     tags.forEach(([tag, count]) => {
       const item = document.createElement('div');
       item.className = 'tag-item' + (activeTag === tag ? ' active' : '');
+      const dot = document.createElement('span');
+      dot.className = 'tag-dot';
+      dot.style.background = getTagColor(tag);
       const name = document.createElement('span');
       name.className = 'tag-name';
       name.textContent = tag;
       const countEl = document.createElement('span');
       countEl.className = 'tag-count';
       countEl.textContent = count;
-      item.append(name, countEl);
+      item.append(dot, name, countEl);
       item.addEventListener('click', () => {
         activeTag = activeTag === tag ? null : tag;
         renderTagsList();
@@ -1629,6 +1649,8 @@
         n.tags.forEach(t => {
           const pill = document.createElement('span');
           pill.className = 'tag-pill';
+          pill.style.background = getTagColor(t) + '22';
+          pill.style.color = getTagColor(t);
           pill.textContent = t;
           tagsRow.append(pill);
         });
@@ -1867,6 +1889,8 @@
       (n.tags || []).forEach(t => {
         const pill = document.createElement('span');
         pill.className = 'tag-pill';
+        pill.style.background = getTagColor(t) + '22';
+        pill.style.color = getTagColor(t);
         const tagText = document.createTextNode(t);
         const del = document.createElement('span');
         del.className = 'tag-del';

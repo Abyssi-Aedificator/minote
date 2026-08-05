@@ -1,5 +1,6 @@
 Version 1.6.2
 - Added: "no tag" filter in the sidebar for notes without tags
+- Added: each tag gets a unique randomly-assigned color
 
 Version 1.6.1
 - Added: find and replace in editor (Ctrl+F / Ctrl+H)
