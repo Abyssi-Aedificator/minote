@@ -311,6 +311,15 @@
   .folder-item:hover{ background:var(--panel-2); color:var(--text); }
   .folder-item.active{ color:var(--accent); background:var(--panel-2); }
   .folder-item .folder-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .folder-count{
+    font-size:.65rem;
+    color:var(--text-dim);
+    background:var(--panel-2);
+    padding:.05rem .35rem;
+    border-radius:8px;
+    line-height:1;
+  }
+  .folder-item.active .folder-count{ background:var(--accent-dim); color:var(--accent); }
   .folder-item .folder-edit, .folder-item .folder-del{
     background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:.65rem; padding:0 .15rem; display:none;
   }
@@ -362,6 +371,10 @@
   .tag-item:hover{ background:var(--panel-2); color:var(--text); }
   .tag-item.active{ color:var(--accent); background:var(--panel-2); }
   .tag-item .tag-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-item .tag-dot{
+    width:.55rem; height:.55rem; border-radius:50%;
+    flex-shrink:0;
+  }
   .tag-item .tag-count{
     font-size:.65rem;
     color:var(--text-dim);
@@ -1167,7 +1180,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.1';
+    const APP_VERSION = '1.6.2';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -1381,13 +1394,17 @@
   function renderFolders(){
     const list = document.getElementById('foldersList');
     list.innerHTML = '';
+    const activeNotes = notes.filter(n => (n.status || 'active') === 'active');
 
     const allItem = document.createElement('div');
     allItem.className = 'folder-item' + (!activeFolderId ? ' active' : '');
     const allName = document.createElement('span');
     allName.className = 'folder-name';
     allName.textContent = 'all notes';
-    allItem.append(allName);
+    const allCount = document.createElement('span');
+    allCount.className = 'folder-count';
+    allCount.textContent = activeNotes.length;
+    allItem.append(allName, allCount);
     allItem.addEventListener('click', () => {
       activeFolderId = null;
       renderFolders();
@@ -1400,7 +1417,10 @@
     const noneName = document.createElement('span');
     noneName.className = 'folder-name';
     noneName.textContent = 'no folder';
-    noneItem.append(noneName);
+    const noneCount = document.createElement('span');
+    noneCount.className = 'folder-count';
+    noneCount.textContent = activeNotes.filter(n => !n.folderId).length;
+    noneItem.append(noneName, noneCount);
     noneItem.addEventListener('click', () => {
       activeFolderId = '__none__';
       renderFolders();
@@ -1507,7 +1527,11 @@
         setTimeout(() => document.addEventListener('click', closePicker), 0);
       });
 
-      item.append(iconBtn, nameSpan, editBtn, delBtn);
+      const folderCount = document.createElement('span');
+      folderCount.className = 'folder-count';
+      folderCount.textContent = activeNotes.filter(n => n.folderId === f.id).length;
+
+      item.append(iconBtn, nameSpan, folderCount, editBtn, delBtn);
       item.addEventListener('click', () => {
         activeFolderId = f.id;
         renderFolders();
@@ -1515,6 +1539,19 @@
       });
       list.append(item);
     });
+  }
+
+  const TAG_COLORS = ['#e8a23a','#4caf50','#42a5f5','#ab47bc','#ef5350','#26c6da','#ec407a','#ff7043','#9ccc65','#5c6bc0','#78909c','#bdbdbd'];
+  let tagColors = {};
+  try { tagColors = JSON.parse(localStorage.getItem('minote-tag-colors') || '{}'); } catch (err) {}
+  function getTagColor(tag){
+    if (tagColors[tag]) return tagColors[tag];
+    const used = new Set(Object.values(tagColors));
+    const avail = TAG_COLORS.filter(c => !used.has(c));
+    const pool = avail.length ? avail : TAG_COLORS;
+    tagColors[tag] = pool[Math.floor(Math.random() * pool.length)];
+    try { localStorage.setItem('minote-tag-colors', JSON.stringify(tagColors)); } catch (err) {}
+    return tagColors[tag];
   }
 
   function allTags(){
@@ -1529,17 +1566,36 @@
   function renderTagsList(){
     const list = document.getElementById('tagsList');
     list.innerHTML = '';
+    const noTagCount = notes.filter(n => (n.status || 'active') === 'active' && !(n.tags || []).length).length;
+    const noneItem = document.createElement('div');
+    noneItem.className = 'tag-item' + (activeTag === '__none__' ? ' active' : '');
+    const noneName = document.createElement('span');
+    noneName.className = 'tag-name';
+    noneName.textContent = 'no tag';
+    const noneCount = document.createElement('span');
+    noneCount.className = 'tag-count';
+    noneCount.textContent = noTagCount;
+    noneItem.append(noneName, noneCount);
+    noneItem.addEventListener('click', () => {
+      activeTag = activeTag === '__none__' ? null : '__none__';
+      renderTagsList();
+      renderIndex();
+    });
+    list.append(noneItem);
     const tags = allTags();
     tags.forEach(([tag, count]) => {
       const item = document.createElement('div');
       item.className = 'tag-item' + (activeTag === tag ? ' active' : '');
+      const dot = document.createElement('span');
+      dot.className = 'tag-dot';
+      dot.style.background = getTagColor(tag);
       const name = document.createElement('span');
       name.className = 'tag-name';
       name.textContent = tag;
       const countEl = document.createElement('span');
       countEl.className = 'tag-count';
       countEl.textContent = count;
-      item.append(name, countEl);
+      item.append(dot, name, countEl);
       item.addEventListener('click', () => {
         activeTag = activeTag === tag ? null : tag;
         renderTagsList();
@@ -1558,7 +1614,11 @@
         if (activeFolderId === '__none__') return !n.folderId;
         return n.folderId === activeFolderId;
       })
-      .filter(n => !activeTag || (n.tags || []).includes(activeTag))
+      .filter(n => {
+        if (!activeTag) return true;
+        if (activeTag === '__none__') return !(n.tags || []).length;
+        return (n.tags || []).includes(activeTag);
+      })
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
       .filter(n => !imageFilter || (n.images && n.images.length))
       .sort((a,b) => (b.pinned - a.pinned) || (b.updated - a.updated));
@@ -1609,6 +1669,8 @@
         n.tags.forEach(t => {
           const pill = document.createElement('span');
           pill.className = 'tag-pill';
+          pill.style.background = getTagColor(t) + '22';
+          pill.style.color = getTagColor(t);
           pill.textContent = t;
           tagsRow.append(pill);
         });
@@ -1847,6 +1909,8 @@
       (n.tags || []).forEach(t => {
         const pill = document.createElement('span');
         pill.className = 'tag-pill';
+        pill.style.background = getTagColor(t) + '22';
+        pill.style.color = getTagColor(t);
         const tagText = document.createTextNode(t);
         const del = document.createElement('span');
         del.className = 'tag-del';
