@@ -1687,6 +1687,7 @@
           if (!await confirmDialog('Permanently delete this note?', true)) return;
           notes = notes.filter(x => x.id !== n.id);
           if (activeId === n.id) activeId = null;
+          renderFolders();
           renderIndex();
           renderEditor();
           remove(n.id).catch(err => console.error('failed to delete note', err));
@@ -1696,6 +1697,7 @@
           n.status = 'trashed';
           n.updated = Date.now();
           if (activeId === n.id) activeId = null;
+          renderFolders();
           renderIndex();
           renderEditor();
           put(n).catch(err => console.error('failed to save note', err));
@@ -1719,7 +1721,7 @@
           setTimeout(() => { swipeSuppress = false; }, 350);
           if(dx<0){
             if(view==='active'){if(n.status==='archived')return;n.status='archived'}else if(view==='archived'){n.status='active'}else return;
-            n.updated=Date.now();put(n);markDirty();renderIndex();renderEditor();toast(n.status==='archived'?'archived':'restored');
+            n.updated=Date.now();put(n);markDirty();renderFolders();renderIndex();renderEditor();toast(n.status==='archived'?'archived':'restored');
           }else{
             n.pinned=!n.pinned;n.updated=Date.now();put(n);markDirty();renderIndex();toast(n.pinned?'pinned':'unpinned');
           }
@@ -1828,6 +1830,7 @@
       n.folderId = folderSelect.value || null;
       n.updated = Date.now();
       scheduleSave();
+      renderFolders();
       renderIndex();
     });
 
@@ -1865,6 +1868,7 @@
       restoreBtn.addEventListener('click', () => {
         n.status = 'active';
         n.updated = Date.now();
+        renderFolders();
         renderIndex();
         renderEditor();
         put(n).catch(err => console.error('failed to save note', err));
@@ -1893,6 +1897,7 @@
       archiveBtn.addEventListener('click', () => {
         n.status = n.status === 'archived' ? 'active' : 'archived';
         n.updated = Date.now();
+        renderFolders();
         renderIndex();
         renderEditor();
         put(n).catch(err => console.error('failed to save note', err));
@@ -2473,6 +2478,7 @@
     const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: activeFolderId === '__none__' ? null : activeFolderId, pinned: false, status: 'active', color: null, updated: Date.now() };
     notes.unshift(n);
     activeId = n.id;
+    renderFolders();
     renderIndex();
     renderEditor();
     const titleInput = editorPanel.querySelector('input[type="text"]');
@@ -2713,6 +2719,7 @@
       active.forEach(n => { n.status = 'trashed'; n.updated = Date.now(); put(n).catch(err => console.error('failed to save note', err)); });
       markDirty();
       if (activeId && notes.find(n => n.id === activeId)?.status === 'trashed') activeId = null;
+      renderFolders();
       renderIndex();
       renderEditor();
       overlay.remove();
