@@ -1529,6 +1529,22 @@
   function renderTagsList(){
     const list = document.getElementById('tagsList');
     list.innerHTML = '';
+    const noTagCount = notes.filter(n => (n.status || 'active') === 'active' && !(n.tags || []).length).length;
+    const noneItem = document.createElement('div');
+    noneItem.className = 'tag-item' + (activeTag === '__none__' ? ' active' : '');
+    const noneName = document.createElement('span');
+    noneName.className = 'tag-name';
+    noneName.textContent = 'no tag';
+    const noneCount = document.createElement('span');
+    noneCount.className = 'tag-count';
+    noneCount.textContent = noTagCount;
+    noneItem.append(noneName, noneCount);
+    noneItem.addEventListener('click', () => {
+      activeTag = activeTag === '__none__' ? null : '__none__';
+      renderTagsList();
+      renderIndex();
+    });
+    list.append(noneItem);
     const tags = allTags();
     tags.forEach(([tag, count]) => {
       const item = document.createElement('div');
@@ -1558,7 +1574,11 @@
         if (activeFolderId === '__none__') return !n.folderId;
         return n.folderId === activeFolderId;
       })
-      .filter(n => !activeTag || (n.tags || []).includes(activeTag))
+      .filter(n => {
+        if (!activeTag) return true;
+        if (activeTag === '__none__') return !(n.tags || []).length;
+        return (n.tags || []).includes(activeTag);
+      })
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
       .filter(n => !imageFilter || (n.images && n.images.length))
       .sort((a,b) => (b.pinned - a.pinned) || (b.updated - a.updated));
