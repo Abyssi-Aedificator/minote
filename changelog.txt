@@ -1,3 +1,8 @@
+Version 1.6.3
+- Fixed: folder note counts now update after adding, moving, archiving, or deleting notes
+- Fixed: tag colors now work for tags with special names like __proto__
+- Fixed: "no tag" filter no longer conflicts with a tag literally named __none__
+
 Version 1.6.2
 - Added: "no tag" filter in the sidebar for notes without tags
 - Added: each tag gets a unique randomly-assigned color

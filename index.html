@@ -1180,7 +1180,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.2';
+    const APP_VERSION = '1.6.3';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -1369,6 +1369,7 @@
   let folders = [];
   let activeId = null;
   let activeFolderId = null;
+  const NO_TAG = Symbol('no-tag');
   let activeTag = null;
   let filter = '';
   let imageFilter = false;
@@ -1542,8 +1543,8 @@
   }
 
   const TAG_COLORS = ['#e8a23a','#4caf50','#42a5f5','#ab47bc','#ef5350','#26c6da','#ec407a','#ff7043','#9ccc65','#5c6bc0','#78909c','#bdbdbd'];
-  let tagColors = {};
-  try { tagColors = JSON.parse(localStorage.getItem('minote-tag-colors') || '{}'); } catch (err) {}
+  let tagColors = Object.create(null);
+  try { Object.assign(tagColors, JSON.parse(localStorage.getItem('minote-tag-colors') || '{}')); } catch (err) {}
   function getTagColor(tag){
     if (tagColors[tag]) return tagColors[tag];
     const used = new Set(Object.values(tagColors));
@@ -1568,7 +1569,7 @@
     list.innerHTML = '';
     const noTagCount = notes.filter(n => (n.status || 'active') === 'active' && !(n.tags || []).length).length;
     const noneItem = document.createElement('div');
-    noneItem.className = 'tag-item' + (activeTag === '__none__' ? ' active' : '');
+    noneItem.className = 'tag-item' + (activeTag === NO_TAG ? ' active' : '');
     const noneName = document.createElement('span');
     noneName.className = 'tag-name';
     noneName.textContent = 'no tag';
@@ -1577,7 +1578,7 @@
     noneCount.textContent = noTagCount;
     noneItem.append(noneName, noneCount);
     noneItem.addEventListener('click', () => {
-      activeTag = activeTag === '__none__' ? null : '__none__';
+      activeTag = activeTag === NO_TAG ? null : NO_TAG;
       renderTagsList();
       renderIndex();
     });
@@ -1616,7 +1617,7 @@
       })
       .filter(n => {
         if (!activeTag) return true;
-        if (activeTag === '__none__') return !(n.tags || []).length;
+        if (activeTag === NO_TAG) return !(n.tags || []).length;
         return (n.tags || []).includes(activeTag);
       })
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
@@ -1687,6 +1688,7 @@
           if (!await confirmDialog('Permanently delete this note?', true)) return;
           notes = notes.filter(x => x.id !== n.id);
           if (activeId === n.id) activeId = null;
+          renderFolders();
           renderIndex();
           renderEditor();
           remove(n.id).catch(err => console.error('failed to delete note', err));
@@ -1696,6 +1698,7 @@
           n.status = 'trashed';
           n.updated = Date.now();
           if (activeId === n.id) activeId = null;
+          renderFolders();
           renderIndex();
           renderEditor();
           put(n).catch(err => console.error('failed to save note', err));
@@ -1719,7 +1722,7 @@
           setTimeout(() => { swipeSuppress = false; }, 350);
           if(dx<0){
             if(view==='active'){if(n.status==='archived')return;n.status='archived'}else if(view==='archived'){n.status='active'}else return;
-            n.updated=Date.now();put(n);markDirty();renderIndex();renderEditor();toast(n.status==='archived'?'archived':'restored');
+            n.updated=Date.now();put(n);markDirty();renderFolders();renderIndex();renderEditor();toast(n.status==='archived'?'archived':'restored');
           }else{
             n.pinned=!n.pinned;n.updated=Date.now();put(n);markDirty();renderIndex();toast(n.pinned?'pinned':'unpinned');
           }
@@ -1828,6 +1831,7 @@
       n.folderId = folderSelect.value || null;
       n.updated = Date.now();
       scheduleSave();
+      renderFolders();
       renderIndex();
     });
 
@@ -1865,6 +1869,7 @@
       restoreBtn.addEventListener('click', () => {
         n.status = 'active';
         n.updated = Date.now();
+        renderFolders();
         renderIndex();
         renderEditor();
         put(n).catch(err => console.error('failed to save note', err));
@@ -1893,6 +1898,7 @@
       archiveBtn.addEventListener('click', () => {
         n.status = n.status === 'archived' ? 'active' : 'archived';
         n.updated = Date.now();
+        renderFolders();
         renderIndex();
         renderEditor();
         put(n).catch(err => console.error('failed to save note', err));
@@ -2473,6 +2479,7 @@
     const n = { id: uid(), title: '', body: '', tags: [], images: [], folderId: activeFolderId === '__none__' ? null : activeFolderId, pinned: false, status: 'active', color: null, updated: Date.now() };
     notes.unshift(n);
     activeId = n.id;
+    renderFolders();
     renderIndex();
     renderEditor();
     const titleInput = editorPanel.querySelector('input[type="text"]');
@@ -2713,6 +2720,7 @@
       active.forEach(n => { n.status = 'trashed'; n.updated = Date.now(); put(n).catch(err => console.error('failed to save note', err)); });
       markDirty();
       if (activeId && notes.find(n => n.id === activeId)?.status === 'trashed') activeId = null;
+      renderFolders();
       renderIndex();
       renderEditor();
       overlay.remove();
