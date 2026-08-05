@@ -1180,7 +1180,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.2';
+    const APP_VERSION = '1.6.3';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -1369,6 +1369,7 @@
   let folders = [];
   let activeId = null;
   let activeFolderId = null;
+  const NO_TAG = Symbol('no-tag');
   let activeTag = null;
   let filter = '';
   let imageFilter = false;
@@ -1568,7 +1569,7 @@
     list.innerHTML = '';
     const noTagCount = notes.filter(n => (n.status || 'active') === 'active' && !(n.tags || []).length).length;
     const noneItem = document.createElement('div');
-    noneItem.className = 'tag-item' + (activeTag === '__none__' ? ' active' : '');
+    noneItem.className = 'tag-item' + (activeTag === NO_TAG ? ' active' : '');
     const noneName = document.createElement('span');
     noneName.className = 'tag-name';
     noneName.textContent = 'no tag';
@@ -1577,7 +1578,7 @@
     noneCount.textContent = noTagCount;
     noneItem.append(noneName, noneCount);
     noneItem.addEventListener('click', () => {
-      activeTag = activeTag === '__none__' ? null : '__none__';
+      activeTag = activeTag === NO_TAG ? null : NO_TAG;
       renderTagsList();
       renderIndex();
     });
@@ -1616,7 +1617,7 @@
       })
       .filter(n => {
         if (!activeTag) return true;
-        if (activeTag === '__none__') return !(n.tags || []).length;
+        if (activeTag === NO_TAG) return !(n.tags || []).length;
         return (n.tags || []).includes(activeTag);
       })
       .filter(n => !term || n.title.toLowerCase().includes(term) || n.body.toLowerCase().includes(term) || (n.tags || []).some(t => t.toLowerCase().includes(term)))
