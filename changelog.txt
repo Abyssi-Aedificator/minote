@@ -1,3 +1,6 @@
+Version 1.6.4
+- Fixed: characters deleted with backspace no longer reappear while typing
+
 Version 1.6.3
 - Fixed: folder note counts now update after adding, moving, archiving, or deleting notes
 - Fixed: tag colors now work for tags with special names like __proto__

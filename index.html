@@ -1180,7 +1180,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.3';
+    const APP_VERSION = '1.6.4';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -2031,6 +2031,7 @@
         n.body = n.body.slice(0, start) + e.data + n.body.slice(end);
         applyBodyEdit(start + e.data.length);
         pendingBodyEdit = true;
+        queueMicrotask(() => { pendingBodyEdit = false; });
       }
     });
     function applyBodyEdit(caretPos){
