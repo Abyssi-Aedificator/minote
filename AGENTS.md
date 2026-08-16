@@ -80,9 +80,11 @@ Run this after every JS change.
 
 OAuth2 PKCE, no backend. Single file at `/minote-backup.json`.
 
-**Upload**: Whole-state overwrite (`{ notes, folders }`). Deduped via `_lastUploadedState` string comparison.
+**Upload**: Whole-state overwrite (`{ notes, folders, deletedNoteIds, deletedFolderIds }`). Deduped via `_lastUploadedState` string comparison.
 
 **Download**: Non-merge = full replace (`clearAll()` + re-insert). Merge = id-based union, newer-wins conflict resolution.
+
+**Tombstones**: Permanent deletions are tracked as id lists (`deletedNoteIds`, `deletedFolderIds`) persisted in localStorage (`minote-deleted-ids`, `minote-deleted-folder-ids`) and included in the sync payload. Both merge and non-merge drop tombstoned ids and null out `folderId` on notes whose folder was deleted. On merge the lists are unioned; on full replace they come from the remote. Note ids are unique per creation, so tombstones never expire.
 
 **Auto-upload**: 10s debounce after edits. Auto-sync on launch if `dbx.autoSync` is true.
 

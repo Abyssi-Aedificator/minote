@@ -1180,7 +1180,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.3';
+    const APP_VERSION = '1.6.4';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -1485,6 +1485,7 @@
         if (activeFolderId === f.id) activeFolderId = null;
         removeFolder(f.id).catch(err => console.error('failed to delete folder', err));
         notes.forEach(n => { if (n.folderId === f.id){ n.folderId = null; put(n).catch(err => console.error('failed to save note', err)); } });
+        tombstone(deletedFolderIds, f.id);
         markDirty();
         renderFolders();
         renderIndex();
@@ -1692,6 +1693,8 @@
           renderIndex();
           renderEditor();
           remove(n.id).catch(err => console.error('failed to delete note', err));
+          tombstone(deletedNoteIds, n.id);
+          const p = _pendingSaves.get(n.id); if (p){ clearTimeout(p.timer); _pendingSaves.delete(n.id); }
           markDirty();
         } else {
           if (!await confirmDialog('Move this note to trash?')) return;
@@ -1888,6 +1891,8 @@
         renderIndex();
         renderEditor();
         remove(n.id).catch(err => console.error('failed to delete note', err));
+        tombstone(deletedNoteIds, n.id);
+        const p = _pendingSaves.get(n.id); if (p){ clearTimeout(p.timer); _pendingSaves.delete(n.id); }
         markDirty();
       });
       header.append(delPermBtn);
@@ -2031,6 +2036,7 @@
         n.body = n.body.slice(0, start) + e.data + n.body.slice(end);
         applyBodyEdit(start + e.data.length);
         pendingBodyEdit = true;
+        queueMicrotask(() => { pendingBodyEdit = false; });
       }
     });
     function applyBodyEdit(caretPos){
@@ -2896,6 +2902,15 @@
 
   let _syncTimer = null, _lastUploadedState = '', _syncing = 0;
   const _pendingSaves = new Map();
+  let deletedNoteIds = [];
+  let deletedFolderIds = [];
+  try { deletedNoteIds = JSON.parse(localStorage.getItem('minote-deleted-ids') || '[]'); } catch (err) {}
+  try { deletedFolderIds = JSON.parse(localStorage.getItem('minote-deleted-folder-ids') || '[]'); } catch (err) {}
+  function tombstone(list, id){
+    if (list.includes(id)) return;
+    list.push(id);
+    try { localStorage.setItem(list === deletedNoteIds ? 'minote-deleted-ids' : 'minote-deleted-folder-ids', JSON.stringify(list)); } catch (err) {}
+  }
   function markDirty(){ scheduleAutoUpload(); }
   function flushPending(){
     for (const { timer, note } of _pendingSaves.values()){
@@ -3009,15 +3024,20 @@
     };
     const remoteNotes = (d.notes || []).map(norm);
     const remoteFolders = (d.folders || []).map(f => ({ id: f.id, name: f.name || 'folder', icon: f.icon || '\uD83D\uDCC1' }));
+    const remoteDeletedNotes = d.deletedNoteIds || [];
+    const remoteDeletedFolders = d.deletedFolderIds || [];
+    const tombNotes = new Set(merge ? [...deletedNoteIds, ...remoteDeletedNotes] : remoteDeletedNotes);
+    const tombFolders = new Set(merge ? [...deletedFolderIds, ...remoteDeletedFolders] : remoteDeletedFolders);
     let conflicts = 0;
     if (merge){
-      const mergeById = (localArr, remoteArr) => {
+      const mergeById = (localArr, remoteArr, skip) => {
         const localById = new Map(localArr.map(x => [x.id, x]));
         const remoteById = new Map(remoteArr.map(x => [x.id, x]));
         const out = [];
         const ids = new Set([...localById.keys(), ...remoteById.keys()]);
         const sinceSync = dbx.lastSyncAt || 0;
         for (const id of ids){
+          if (skip.has(id)) continue;
           const l = localById.get(id), r = remoteById.get(id);
           if (l && !r){ out.push(l); }
           else if (r && !l){ out.push(r); }
@@ -3029,19 +3049,26 @@
         }
         return out;
       };
-      notes = mergeById(notes, remoteNotes);
-      folders = mergeById(folders, remoteFolders);
+      notes = mergeById(notes, remoteNotes, tombNotes);
+      folders = mergeById(folders, remoteFolders, tombFolders);
     } else {
       notes = remoteNotes;
       folders = remoteFolders;
     }
+    notes = notes.filter(n => !tombNotes.has(n.id));
+    folders = folders.filter(f => !tombFolders.has(f.id));
+    notes.forEach(n => { if (n.folderId && tombFolders.has(n.folderId)) n.folderId = null; });
+    deletedNoteIds = [...tombNotes];
+    deletedFolderIds = [...tombFolders];
+    try { localStorage.setItem('minote-deleted-ids', JSON.stringify(deletedNoteIds)); } catch (err) {}
+    try { localStorage.setItem('minote-deleted-folder-ids', JSON.stringify(deletedFolderIds)); } catch (err) {}
     await clearAll();
     await clearAllFolders();
     for (const n of notes) await put(n);
     for (const f of folders) await putFolder(f);
     activeId = null;
     activeFolderId = null;
-    _lastUploadedState = JSON.stringify({ notes, folders });
+    _lastUploadedState = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds });
     localStorage.setItem('minote-uploaded-state', _lastUploadedState);
     renderFolders(); renderIndex(); renderEditor();
     return conflicts;
@@ -3049,9 +3076,9 @@
 
   async function dropboxUpload(silent){
     if (!await dropboxRefreshIfNeeded()){ if (!silent) toast('⚠ Dropbox session expired — reconnect'); return; }
-    const snapshot = JSON.stringify({ notes, folders });
+    const snapshot = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds });
     if (silent && snapshot === _lastUploadedState) return;
-    const payload = { app: 'minote', version: 1, exportedAt: new Date().toISOString(), data: { notes, folders } };
+    const payload = { app: 'minote', version: 1, exportedAt: new Date().toISOString(), data: { notes, folders, deletedNoteIds, deletedFolderIds } };
     setSyncing(true);
     try {
       const res = await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -3089,7 +3116,7 @@
         if (conflicts){
           const keep = await confirmDialog(conflicts + ' note' + (conflicts === 1 ? '' : 's') + ' changed on both this device and Dropbox since the last sync. Keep the Dropbox versions? (Cancel keeps this device\u2019s versions.)', true);
           if (keep){ await dbxApplyData(d); }
-          else { _lastUploadedState = JSON.stringify({ notes, folders }); localStorage.setItem('minote-uploaded-state', _lastUploadedState); }
+          else { _lastUploadedState = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds }); localStorage.setItem('minote-uploaded-state', _lastUploadedState); }
         }
       }
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
