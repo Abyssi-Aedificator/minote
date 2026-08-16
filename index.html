@@ -1694,6 +1694,7 @@
           renderEditor();
           remove(n.id).catch(err => console.error('failed to delete note', err));
           tombstone(deletedNoteIds, n.id);
+          const p = _pendingSaves.get(n.id); if (p){ clearTimeout(p.timer); _pendingSaves.delete(n.id); }
           markDirty();
         } else {
           if (!await confirmDialog('Move this note to trash?')) return;
@@ -1891,6 +1892,7 @@
         renderEditor();
         remove(n.id).catch(err => console.error('failed to delete note', err));
         tombstone(deletedNoteIds, n.id);
+        const p = _pendingSaves.get(n.id); if (p){ clearTimeout(p.timer); _pendingSaves.delete(n.id); }
         markDirty();
       });
       header.append(delPermBtn);
