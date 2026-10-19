@@ -1,3 +1,6 @@
+Version 1.6.5
+- Added: grey accent colour that works in both light and dark themes
+
 Version 1.6.4
 - Fixed: characters deleted with backspace no longer reappear while typing
 - Fixed: notes and folders deleted permanently no longer sync back from other devices (deletions are now tracked and honored across devices)
