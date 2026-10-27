@@ -284,7 +284,7 @@
     align-items:center;
     justify-content:space-between;
     padding:.45rem .8rem .3rem;
-    font-size:.68rem;
+    font-size:.75rem;
     text-transform:uppercase;
     letter-spacing:.1em;
     color:var(--text-dim);
@@ -302,17 +302,20 @@
   .folder-item{
     display:flex;
     align-items:center;
-    padding:.28rem .8rem;
+    min-height:2.25rem;
+    padding:.4rem .8rem;
     cursor:pointer;
-    font-size:.82rem;
+    font-size:.9375rem;
+    line-height:1.35;
     color:var(--text-dim);
     gap:.4rem;
   }
   .folder-item:hover{ background:var(--panel-2); color:var(--text); }
   .folder-item.active{ color:var(--accent); background:var(--panel-2); }
-  .folder-item .folder-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .folder-item .folder-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .folder-count{
-    font-size:.65rem;
+    flex-shrink:0;
+    font-size:.75rem;
     color:var(--text-dim);
     background:var(--panel-2);
     padding:.05rem .35rem;
@@ -328,7 +331,8 @@
   .folder-item .folder-del:hover{ color:var(--danger); }
   .folder-rename-input{
     font-family:inherit;
-    font-size:.82rem;
+    min-width:0;
+    font-size:.9375rem;
     background:var(--panel-2);
     border:1px solid var(--accent);
     color:var(--text);
@@ -354,7 +358,7 @@
     padding:.45rem .8rem .3rem;
     margin-top:.4rem;
     border-top:1px solid var(--line);
-    font-size:.68rem;
+    font-size:.75rem;
     text-transform:uppercase;
     letter-spacing:.1em;
     color:var(--text-dim);
@@ -362,21 +366,24 @@
   .tag-item{
     display:flex;
     align-items:center;
-    padding:.28rem .8rem;
+    min-height:2.25rem;
+    padding:.4rem .8rem;
     cursor:pointer;
-    font-size:.82rem;
+    font-size:.9375rem;
+    line-height:1.35;
     color:var(--text-dim);
     gap:.4rem;
   }
   .tag-item:hover{ background:var(--panel-2); color:var(--text); }
   .tag-item.active{ color:var(--accent); background:var(--panel-2); }
-  .tag-item .tag-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-item .tag-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tag-item .tag-dot{
-    width:.55rem; height:.55rem; border-radius:50%;
+    width:.65rem; height:.65rem; border-radius:50%;
     flex-shrink:0;
   }
   .tag-item .tag-count{
-    font-size:.65rem;
+    flex-shrink:0;
+    font-size:.75rem;
     color:var(--text-dim);
     background:var(--panel-2);
     padding:.05rem .35rem;
@@ -386,7 +393,7 @@
   .tag-item.active .tag-count{ background:var(--accent-dim); color:var(--accent); }
   .folder-item .folder-icon-btn{
     background:none; border:none; cursor:pointer;
-    font-size:.85rem; padding:0; line-height:1;
+    font-size:1rem; padding:0; line-height:1;
     flex-shrink:0; width:1.2rem; text-align:center;
   }
   .folder-item .folder-icon-btn:hover{ opacity:.7; }
