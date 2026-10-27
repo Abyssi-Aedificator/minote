@@ -1,3 +1,8 @@
+Version 1.6.6
+- Added: import Markdown (.md) files as new notes into a chosen folder from Settings
+- Added: pending Dropbox sync reminder banner, Sync button indicator, and warning before closing with changes waiting to upload; banner can be hidden in settings
+- Improved: larger folder and tag labels, icons, and counts with more comfortable sidebar row spacing
+
 Version 1.6.5
 - Added: grey accent colour that works in both light and dark themes
 

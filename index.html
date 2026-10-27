@@ -1210,7 +1210,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.5';
+    const APP_VERSION = '1.6.6';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -2655,6 +2655,28 @@
     input.click();
   }
 
+  async function importMarkdownFiles(files, folderId){
+    if (!files.length) return 0;
+    if (files.some(file => !/\.md$/i.test(file.name))) throw new Error('Please select .md files');
+    const imported = await Promise.all(files.map(async file => ({
+      id: uid(), title: file.name.replace(/\.md$/i, '') || 'Untitled',
+      body: (await file.text()).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n'),
+      tags: [], images: [], folderId, pinned: false, status: 'active', color: null, updated: Date.now()
+    })));
+    if (folderId && !folders.some(f => f.id === folderId)) throw new Error('That folder no longer exists. Choose another folder');
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE, 'readwrite');
+      transaction.oncomplete = resolve;
+      transaction.onabort = () => reject(transaction.error || new Error('Markdown import could not be saved'));
+      const store = transaction.objectStore(STORE);
+      imported.forEach(note => store.add(note));
+    });
+    notes.unshift(...imported);
+    markDirty();
+    renderFolders(); renderIndex();
+    return imported.length;
+  }
+
   document.getElementById('settingsBtn').addEventListener('click', () => {
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -2685,6 +2707,15 @@
             <button id="settingsClearBtn" class="danger">clear all</button>
           </div>
           </div>
+
+        <div class="settings-card">
+          <h3>import markdown</h3>
+          <p class="settings-hint">Add .md files as new notes. File names become titles and Markdown is preserved. Existing notes are kept.</p>
+          <label for="markdownFolder">destination folder</label>
+          <select id="markdownFolder" class="folder-select" style="width:100%;margin-bottom:.8rem"></select>
+          <input id="markdownFiles" type="file" accept=".md" multiple hidden>
+          <div class="settings-actions"><button id="markdownImportBtn" type="button">choose .md files</button></div>
+        </div>
 
         <div class="settings-card">
           <h3>dropbox sync <span id="dbxStatus" class="dbx-status"></span></h3>
@@ -2759,6 +2790,32 @@
     overlay.querySelector('#settingsExportBtn').addEventListener('click', doExport);
 
     overlay.querySelector('#settingsImportBtn').addEventListener('click', doImport);
+    const markdownFolder = overlay.querySelector('#markdownFolder');
+    markdownFolder.add(new Option('No folder', ''));
+    folders.forEach(f => markdownFolder.add(new Option((f.icon || '📁') + ' ' + f.name, f.id)));
+    markdownFolder.value = folders.some(f => f.id === activeFolderId) ? activeFolderId : '';
+    const markdownFiles = overlay.querySelector('#markdownFiles');
+    const markdownImportBtn = overlay.querySelector('#markdownImportBtn');
+    markdownImportBtn.addEventListener('click', () => markdownFiles.click());
+    markdownFiles.addEventListener('change', async () => {
+      const files = Array.from(markdownFiles.files);
+      const folderId = markdownFolder.value || null;
+      if (!files.length) return;
+      markdownImportBtn.disabled = true;
+      markdownFolder.disabled = true;
+      markdownImportBtn.textContent = 'importing…';
+      try {
+        const count = await importMarkdownFiles(files, folderId);
+        toast('Imported ' + count + ' Markdown note' + (count === 1 ? '' : 's'));
+      } catch (err) { toast('⚠ ' + err.message); }
+      finally {
+        markdownFiles.value = '';
+        markdownImportBtn.disabled = false;
+        markdownFolder.disabled = false;
+        markdownImportBtn.textContent = 'choose .md files';
+      }
+    });
+
     overlay.querySelector('#settingsClearBtn').addEventListener('click', async () => {
       const active = notes.filter(n => (n.status || 'active') === 'active');
       if (!active.length) return;
