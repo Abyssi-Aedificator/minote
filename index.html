@@ -284,7 +284,7 @@
     align-items:center;
     justify-content:space-between;
     padding:.45rem .8rem .3rem;
-    font-size:.68rem;
+    font-size:.75rem;
     text-transform:uppercase;
     letter-spacing:.1em;
     color:var(--text-dim);
@@ -302,17 +302,20 @@
   .folder-item{
     display:flex;
     align-items:center;
-    padding:.28rem .8rem;
+    min-height:2.25rem;
+    padding:.4rem .8rem;
     cursor:pointer;
-    font-size:.82rem;
+    font-size:.9375rem;
+    line-height:1.35;
     color:var(--text-dim);
     gap:.4rem;
   }
   .folder-item:hover{ background:var(--panel-2); color:var(--text); }
   .folder-item.active{ color:var(--accent); background:var(--panel-2); }
-  .folder-item .folder-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .folder-item .folder-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .folder-count{
-    font-size:.65rem;
+    flex-shrink:0;
+    font-size:.75rem;
     color:var(--text-dim);
     background:var(--panel-2);
     padding:.05rem .35rem;
@@ -328,7 +331,8 @@
   .folder-item .folder-del:hover{ color:var(--danger); }
   .folder-rename-input{
     font-family:inherit;
-    font-size:.82rem;
+    min-width:0;
+    font-size:.9375rem;
     background:var(--panel-2);
     border:1px solid var(--accent);
     color:var(--text);
@@ -354,7 +358,7 @@
     padding:.45rem .8rem .3rem;
     margin-top:.4rem;
     border-top:1px solid var(--line);
-    font-size:.68rem;
+    font-size:.75rem;
     text-transform:uppercase;
     letter-spacing:.1em;
     color:var(--text-dim);
@@ -362,21 +366,24 @@
   .tag-item{
     display:flex;
     align-items:center;
-    padding:.28rem .8rem;
+    min-height:2.25rem;
+    padding:.4rem .8rem;
     cursor:pointer;
-    font-size:.82rem;
+    font-size:.9375rem;
+    line-height:1.35;
     color:var(--text-dim);
     gap:.4rem;
   }
   .tag-item:hover{ background:var(--panel-2); color:var(--text); }
   .tag-item.active{ color:var(--accent); background:var(--panel-2); }
-  .tag-item .tag-name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-item .tag-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .tag-item .tag-dot{
-    width:.55rem; height:.55rem; border-radius:50%;
+    width:.65rem; height:.65rem; border-radius:50%;
     flex-shrink:0;
   }
   .tag-item .tag-count{
-    font-size:.65rem;
+    flex-shrink:0;
+    font-size:.75rem;
     color:var(--text-dim);
     background:var(--panel-2);
     padding:.05rem .35rem;
@@ -386,7 +393,7 @@
   .tag-item.active .tag-count{ background:var(--accent-dim); color:var(--accent); }
   .folder-item .folder-icon-btn{
     background:none; border:none; cursor:pointer;
-    font-size:.85rem; padding:0; line-height:1;
+    font-size:1rem; padding:0; line-height:1;
     flex-shrink:0; width:1.2rem; text-align:center;
   }
   .folder-item .folder-icon-btn:hover{ opacity:.7; }
@@ -986,6 +993,23 @@
   .dbx-toggle input:checked + .dbx-toggle-track .dbx-toggle-thumb{ transform:translateX(16px); background:var(--accent); }
   .dbx-toggle input:focus-visible + .dbx-toggle-track{ outline:1px solid var(--accent); outline-offset:1px; }
   #syncBtn .sync-ico{ display:inline-block; }
+  #syncBtn{ position:relative; }
+  #syncBtn.dirty::after{
+    content:''; position:absolute; top:2px; right:2px;
+    width:8px; height:8px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  .sync-banner{
+    flex-shrink:0; display:flex; align-items:center; gap:.65rem; flex-wrap:wrap;
+    padding:.6rem 1rem; background:var(--accent-dim); color:var(--text);
+    border-bottom:1px solid var(--accent); font-size:.85rem;
+  }
+  .sync-banner[hidden]{ display:none; }
+  .sync-banner span{ flex:1; min-width:160px; }
+  .sync-banner button{
+    font:inherit; color:var(--text); background:var(--panel);
+    border:1px solid var(--accent); border-radius:3px; padding:.3rem .6rem; cursor:pointer;
+  }
   #syncBtn.syncing .sync-ico{ animation:dbx-spin .8s linear infinite; }
   @keyframes dbx-spin{ to{ transform:rotate(360deg); } }
 
@@ -1146,6 +1170,12 @@
   </div>
 </div>
 
+<div class="sync-banner" id="syncBanner" hidden>
+  <span role="status">Changes on this device are waiting to sync to Dropbox.</span>
+  <button id="syncBannerUpload" type="button">sync now</button>
+  <button id="syncBannerClose" type="button" aria-label="Dismiss sync reminder">✕</button>
+</div>
+
 <div class="layout" id="layout">
   <div class="folder-panel" id="folderPanel">
     <div class="folders-header">
@@ -1180,7 +1210,7 @@
 
 <script>
 (() => {
-    const APP_VERSION = '1.6.5';
+    const APP_VERSION = '1.6.6';
     const DEV = false;
     if (!DEV) document.getElementById('devBanner').remove();
     const DB_NAME = 'minote-db';
@@ -1999,6 +2029,7 @@
 
     let debounce;
     function scheduleSave(){
+      updateSyncDirtyIndicator();
       clearTimeout(debounce);
       debounce = setTimeout(() => {
         n.updated = Date.now();
@@ -2624,6 +2655,28 @@
     input.click();
   }
 
+  async function importMarkdownFiles(files, folderId){
+    if (!files.length) return 0;
+    if (files.some(file => !/\.md$/i.test(file.name))) throw new Error('Please select .md files');
+    const imported = await Promise.all(files.map(async file => ({
+      id: uid(), title: file.name.replace(/\.md$/i, '') || 'Untitled',
+      body: (await file.text()).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n'),
+      tags: [], images: [], folderId, pinned: false, status: 'active', color: null, updated: Date.now()
+    })));
+    if (folderId && !folders.some(f => f.id === folderId)) throw new Error('That folder no longer exists. Choose another folder');
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE, 'readwrite');
+      transaction.oncomplete = resolve;
+      transaction.onabort = () => reject(transaction.error || new Error('Markdown import could not be saved'));
+      const store = transaction.objectStore(STORE);
+      imported.forEach(note => store.add(note));
+    });
+    notes.unshift(...imported);
+    markDirty();
+    renderFolders(); renderIndex();
+    return imported.length;
+  }
+
   document.getElementById('settingsBtn').addEventListener('click', () => {
     const overlay = document.createElement('div');
     overlay.className = 'overlay';
@@ -2656,6 +2709,15 @@
           </div>
 
         <div class="settings-card">
+          <h3>import markdown</h3>
+          <p class="settings-hint">Add .md files as new notes. File names become titles and Markdown is preserved. Existing notes are kept.</p>
+          <label for="markdownFolder">destination folder</label>
+          <select id="markdownFolder" class="folder-select" style="width:100%;margin-bottom:.8rem"></select>
+          <input id="markdownFiles" type="file" accept=".md" multiple hidden>
+          <div class="settings-actions"><button id="markdownImportBtn" type="button">choose .md files</button></div>
+        </div>
+
+        <div class="settings-card">
           <h3>dropbox sync <span id="dbxStatus" class="dbx-status"></span></h3>
           <p class="settings-hint">Sync through your own Dropbox account so the same notes are available on PC and Android. Your data goes straight from your browser to Dropbox — never through any server of ours.</p>
           <div id="dbxSetup">
@@ -2676,6 +2738,11 @@
               <input type="checkbox" id="dbxAutoSync">
               <span class="dbx-toggle-track"><span class="dbx-toggle-thumb"></span></span>
               <span>auto-sync newer backups on launch</span>
+            </label>
+            <label class="dbx-toggle">
+              <input type="checkbox" id="dbxHideSyncBanner">
+              <span class="dbx-toggle-track"><span class="dbx-toggle-thumb"></span></span>
+              <span>hide the pending sync reminder banner</span>
             </label>
             <div class="settings-actions">
               <button id="dbxUploadBtn">⬆ upload</button>
@@ -2716,10 +2783,38 @@
     overlay.querySelector('#dbxDisconnectBtn').addEventListener('click', dropboxDisconnect);
     overlay.querySelector('#dbxAutoUpload').addEventListener('change', (e) => dropboxSetAutoUpload(e.target.checked));
     overlay.querySelector('#dbxAutoSync').addEventListener('change', (e) => dropboxSetAutoSync(e.target.checked));
+    overlay.querySelector('#dbxHideSyncBanner').addEventListener('change', (e) => {
+      dbx.hideSyncBanner = e.target.checked; dbxSave(); updateSyncDirtyIndicator();
+    });
 
     overlay.querySelector('#settingsExportBtn').addEventListener('click', doExport);
 
     overlay.querySelector('#settingsImportBtn').addEventListener('click', doImport);
+    const markdownFolder = overlay.querySelector('#markdownFolder');
+    markdownFolder.add(new Option('No folder', ''));
+    folders.forEach(f => markdownFolder.add(new Option((f.icon || '📁') + ' ' + f.name, f.id)));
+    markdownFolder.value = folders.some(f => f.id === activeFolderId) ? activeFolderId : '';
+    const markdownFiles = overlay.querySelector('#markdownFiles');
+    const markdownImportBtn = overlay.querySelector('#markdownImportBtn');
+    markdownImportBtn.addEventListener('click', () => markdownFiles.click());
+    markdownFiles.addEventListener('change', async () => {
+      const files = Array.from(markdownFiles.files);
+      const folderId = markdownFolder.value || null;
+      if (!files.length) return;
+      markdownImportBtn.disabled = true;
+      markdownFolder.disabled = true;
+      markdownImportBtn.textContent = 'importing…';
+      try {
+        const count = await importMarkdownFiles(files, folderId);
+        toast('Imported ' + count + ' Markdown note' + (count === 1 ? '' : 's'));
+      } catch (err) { toast('⚠ ' + err.message); }
+      finally {
+        markdownFiles.value = '';
+        markdownImportBtn.disabled = false;
+        markdownFolder.disabled = false;
+        markdownImportBtn.textContent = 'choose .md files';
+      }
+    });
 
     overlay.querySelector('#settingsClearBtn').addEventListener('click', async () => {
       const active = notes.filter(n => (n.status || 'active') === 'active');
@@ -2903,6 +2998,17 @@
   const dbxRedirectUri = () => location.origin + location.pathname;
 
   let _syncTimer = null, _lastUploadedState = '', _syncing = 0;
+  let _syncBannerDismissed = false;
+  function syncSnapshot(){ return JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds }); }
+  function isSyncPending(){ return !!dbx.accessToken && syncSnapshot() !== _lastUploadedState; }
+  function updateSyncDirtyIndicator(){
+    const pending = isSyncPending();
+    const btn = document.getElementById('syncBtn');
+    btn.classList.toggle('dirty', pending);
+    btn.title = pending ? 'Changes waiting to sync to Dropbox' : 'Sync to Dropbox';
+    if (!pending) _syncBannerDismissed = false;
+    document.getElementById('syncBanner').hidden = !pending || _syncBannerDismissed || !!dbx.hideSyncBanner;
+  }
   const _pendingSaves = new Map();
   let deletedNoteIds = [];
   let deletedFolderIds = [];
@@ -2913,21 +3019,24 @@
     list.push(id);
     try { localStorage.setItem(list === deletedNoteIds ? 'minote-deleted-ids' : 'minote-deleted-folder-ids', JSON.stringify(list)); } catch (err) {}
   }
-  function markDirty(){ scheduleAutoUpload(); }
+  function markDirty(){ updateSyncDirtyIndicator(); scheduleAutoUpload(); }
   function flushPending(){
     for (const { timer, note } of _pendingSaves.values()){
       clearTimeout(timer);
       put(note).catch(err => console.error('failed to save note', err));
     }
     _pendingSaves.clear();
-    if (_syncTimer){ clearTimeout(_syncTimer); dropboxUpload(true); }
+    if (_syncTimer){ clearTimeout(_syncTimer); _syncTimer = null; dropboxUpload(true); }
   }
-  window.addEventListener('beforeunload', flushPending);
+  window.addEventListener('beforeunload', (e) => {
+    flushPending();
+    if (isSyncPending()){ e.preventDefault(); e.returnValue = ''; }
+  });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPending(); });
   function scheduleAutoUpload(){
     if (!dbx.accessToken || !dbx.autoUpload) return;
     clearTimeout(_syncTimer);
-    _syncTimer = setTimeout(() => dropboxUpload(true), 10000);
+    _syncTimer = setTimeout(() => { _syncTimer = null; dropboxUpload(true); }, 10000);
   }
   function setSyncing(on){
     _syncing += on ? 1 : -1;
@@ -3013,7 +3122,7 @@
     return d;
   }
 
-  async function dbxApplyData(d, { merge = false } = {}){
+  async function dbxApplyData(d, { merge = false, fromDropbox = false } = {}){
     const norm = (x) => {
       if (x.body === undefined) x.body = x.text || '';
       if (x.title === undefined) x.title = '';
@@ -3070,8 +3179,17 @@
     for (const f of folders) await putFolder(f);
     activeId = null;
     activeFolderId = null;
-    _lastUploadedState = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds });
-    localStorage.setItem('minote-uploaded-state', _lastUploadedState);
+    if (fromDropbox){
+      const remoteNoteTombs = new Set(remoteDeletedNotes);
+      const remoteFolderTombs = new Set(remoteDeletedFolders);
+      _lastUploadedState = JSON.stringify({
+        notes: remoteNotes.filter(n => !remoteNoteTombs.has(n.id)).map(n =>
+          n.folderId && remoteFolderTombs.has(n.folderId) ? { ...n, folderId: null } : n),
+        folders: remoteFolders.filter(f => !remoteFolderTombs.has(f.id)),
+        deletedNoteIds: remoteDeletedNotes, deletedFolderIds: remoteDeletedFolders
+      });
+      localStorage.setItem('minote-uploaded-state', _lastUploadedState);
+    }
     renderFolders(); renderIndex(); renderEditor();
     return conflicts;
   }
@@ -3095,7 +3213,7 @@
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
       toast(silent ? 'Auto-synced to Dropbox' : 'Uploaded to Dropbox');
     } catch (err) { toast('⚠ ' + err.message); }
-    finally { setSyncing(false); }
+    finally { setSyncing(false); updateSyncDirtyIndicator(); }
   }
 
   async function dropboxDownload(skipConfirm, { merge = false } = {}){
@@ -3112,17 +3230,17 @@
       const d = dbxParseBackup(await res.text());
       if (!merge){
         if (!skipConfirm && !await confirmDialog('Download from Dropbox? It will replace all your current notes and folders.', true)) return;
-        await dbxApplyData(d);
+        await dbxApplyData(d, { fromDropbox: true });
       } else {
-        const conflicts = await dbxApplyData(d, { merge: true });
+        const conflicts = await dbxApplyData(d, { merge: true, fromDropbox: true });
         if (conflicts){
           const keep = await confirmDialog(conflicts + ' note' + (conflicts === 1 ? '' : 's') + ' changed on both this device and Dropbox since the last sync. Keep the Dropbox versions? (Cancel keeps this device\u2019s versions.)', true);
-          if (keep){ await dbxApplyData(d); }
-          else { _lastUploadedState = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds }); localStorage.setItem('minote-uploaded-state', _lastUploadedState); }
+          if (keep){ await dbxApplyData(d, { fromDropbox: true }); }
         }
       }
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
       toast(merge ? 'Merged with Dropbox' : 'Synced from Dropbox');
+      if (isSyncPending()) scheduleAutoUpload();
     } catch (err) { toast('⚠ ' + (err.message === 'bad backup format' ? "Dropbox file isn't a minote backup" : err.message)); }
   }
 
@@ -3189,14 +3307,20 @@
       root.querySelector('#dbxLastSync').textContent = dbx.lastSync ? 'last synced ' + dbx.lastSync : 'never synced';
       root.querySelector('#dbxAutoUpload').checked = !!dbx.autoUpload;
       root.querySelector('#dbxAutoSync').checked = !!dbx.autoSync;
+      root.querySelector('#dbxHideSyncBanner').checked = !!dbx.hideSyncBanner;
       st.textContent = isConnected ? 'connected' : 'not connected';
       st.classList.toggle('connected', isConnected);
     }
     const syncBtn = document.getElementById('syncBtn');
     if (syncBtn) syncBtn.style.display = isConnected ? 'inline-block' : 'none';
+    updateSyncDirtyIndicator();
   }
 
   document.getElementById('syncBtn').addEventListener('click', () => dropboxUpload(false));
+  document.getElementById('syncBannerUpload').addEventListener('click', () => dropboxUpload(false));
+  document.getElementById('syncBannerClose').addEventListener('click', () => {
+    _syncBannerDismissed = true; updateSyncDirtyIndicator();
+  });
 
   function confirmDialog(msg, danger=false){
     return new Promise(resolve => {
@@ -3276,11 +3400,17 @@
     renderIndex();
     renderEditor();
     const storedState = localStorage.getItem('minote-uploaded-state');
-    _lastUploadedState = storedState || JSON.stringify({ notes, folders });
+    if (storedState){
+      try {
+        const saved = JSON.parse(storedState);
+        _lastUploadedState = JSON.stringify({ notes: saved.notes, folders: saved.folders,
+          deletedNoteIds: saved.deletedNoteIds || [], deletedFolderIds: saved.deletedFolderIds || [] });
+      } catch (err) { _lastUploadedState = ''; }
+    } else { _lastUploadedState = dbx.accessToken ? '' : syncSnapshot(); }
     updateDropboxUI();
     dropboxHandleRedirect();
     dropboxCheckForUpdates();
-    if (dbx.accessToken && dbx.autoUpload && JSON.stringify({ notes, folders }) !== _lastUploadedState){
+    if (dbx.autoUpload && isSyncPending()){
       setTimeout(() => dropboxUpload(true), 1500);
     }
     checkVersionUpdate();

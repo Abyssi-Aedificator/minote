@@ -14,6 +14,7 @@ A minimal, offline-first note-taking app that runs entirely in your browser.
 - **PWA** — installable, works offline with a service worker
 - **Dark/light theme** with 8 accent colours
 - **Export/import** full backup as JSON
+- **Markdown import** — Settings lets you choose a destination folder and import one or more `.md` files as new notes, keeping existing notes
 
 ## Usage
 
