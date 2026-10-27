@@ -993,6 +993,23 @@
   .dbx-toggle input:checked + .dbx-toggle-track .dbx-toggle-thumb{ transform:translateX(16px); background:var(--accent); }
   .dbx-toggle input:focus-visible + .dbx-toggle-track{ outline:1px solid var(--accent); outline-offset:1px; }
   #syncBtn .sync-ico{ display:inline-block; }
+  #syncBtn{ position:relative; }
+  #syncBtn.dirty::after{
+    content:''; position:absolute; top:2px; right:2px;
+    width:8px; height:8px; border-radius:50%; background:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-dim);
+  }
+  .sync-banner{
+    flex-shrink:0; display:flex; align-items:center; gap:.65rem; flex-wrap:wrap;
+    padding:.6rem 1rem; background:var(--accent-dim); color:var(--text);
+    border-bottom:1px solid var(--accent); font-size:.85rem;
+  }
+  .sync-banner[hidden]{ display:none; }
+  .sync-banner span{ flex:1; min-width:160px; }
+  .sync-banner button{
+    font:inherit; color:var(--text); background:var(--panel);
+    border:1px solid var(--accent); border-radius:3px; padding:.3rem .6rem; cursor:pointer;
+  }
   #syncBtn.syncing .sync-ico{ animation:dbx-spin .8s linear infinite; }
   @keyframes dbx-spin{ to{ transform:rotate(360deg); } }
 
@@ -1151,6 +1168,12 @@
     <button id="syncBtn" style="display:none"><span class="sync-ico">⟳</span> sync</button>
     <button id="settingsBtn">settings</button>
   </div>
+</div>
+
+<div class="sync-banner" id="syncBanner" hidden>
+  <span role="status">Changes on this device are waiting to sync to Dropbox.</span>
+  <button id="syncBannerUpload" type="button">sync now</button>
+  <button id="syncBannerClose" type="button" aria-label="Dismiss sync reminder">✕</button>
 </div>
 
 <div class="layout" id="layout">
@@ -2006,6 +2029,7 @@
 
     let debounce;
     function scheduleSave(){
+      updateSyncDirtyIndicator();
       clearTimeout(debounce);
       debounce = setTimeout(() => {
         n.updated = Date.now();
@@ -2684,6 +2708,11 @@
               <span class="dbx-toggle-track"><span class="dbx-toggle-thumb"></span></span>
               <span>auto-sync newer backups on launch</span>
             </label>
+            <label class="dbx-toggle">
+              <input type="checkbox" id="dbxHideSyncBanner">
+              <span class="dbx-toggle-track"><span class="dbx-toggle-thumb"></span></span>
+              <span>hide the pending sync reminder banner</span>
+            </label>
             <div class="settings-actions">
               <button id="dbxUploadBtn">⬆ upload</button>
               <button id="dbxDownloadBtn">⬇ download</button>
@@ -2723,11 +2752,13 @@
     overlay.querySelector('#dbxDisconnectBtn').addEventListener('click', dropboxDisconnect);
     overlay.querySelector('#dbxAutoUpload').addEventListener('change', (e) => dropboxSetAutoUpload(e.target.checked));
     overlay.querySelector('#dbxAutoSync').addEventListener('change', (e) => dropboxSetAutoSync(e.target.checked));
+    overlay.querySelector('#dbxHideSyncBanner').addEventListener('change', (e) => {
+      dbx.hideSyncBanner = e.target.checked; dbxSave(); updateSyncDirtyIndicator();
+    });
 
     overlay.querySelector('#settingsExportBtn').addEventListener('click', doExport);
 
     overlay.querySelector('#settingsImportBtn').addEventListener('click', doImport);
-
     overlay.querySelector('#settingsClearBtn').addEventListener('click', async () => {
       const active = notes.filter(n => (n.status || 'active') === 'active');
       if (!active.length) return;
@@ -2910,6 +2941,17 @@
   const dbxRedirectUri = () => location.origin + location.pathname;
 
   let _syncTimer = null, _lastUploadedState = '', _syncing = 0;
+  let _syncBannerDismissed = false;
+  function syncSnapshot(){ return JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds }); }
+  function isSyncPending(){ return !!dbx.accessToken && syncSnapshot() !== _lastUploadedState; }
+  function updateSyncDirtyIndicator(){
+    const pending = isSyncPending();
+    const btn = document.getElementById('syncBtn');
+    btn.classList.toggle('dirty', pending);
+    btn.title = pending ? 'Changes waiting to sync to Dropbox' : 'Sync to Dropbox';
+    if (!pending) _syncBannerDismissed = false;
+    document.getElementById('syncBanner').hidden = !pending || _syncBannerDismissed || !!dbx.hideSyncBanner;
+  }
   const _pendingSaves = new Map();
   let deletedNoteIds = [];
   let deletedFolderIds = [];
@@ -2920,21 +2962,24 @@
     list.push(id);
     try { localStorage.setItem(list === deletedNoteIds ? 'minote-deleted-ids' : 'minote-deleted-folder-ids', JSON.stringify(list)); } catch (err) {}
   }
-  function markDirty(){ scheduleAutoUpload(); }
+  function markDirty(){ updateSyncDirtyIndicator(); scheduleAutoUpload(); }
   function flushPending(){
     for (const { timer, note } of _pendingSaves.values()){
       clearTimeout(timer);
       put(note).catch(err => console.error('failed to save note', err));
     }
     _pendingSaves.clear();
-    if (_syncTimer){ clearTimeout(_syncTimer); dropboxUpload(true); }
+    if (_syncTimer){ clearTimeout(_syncTimer); _syncTimer = null; dropboxUpload(true); }
   }
-  window.addEventListener('beforeunload', flushPending);
+  window.addEventListener('beforeunload', (e) => {
+    flushPending();
+    if (isSyncPending()){ e.preventDefault(); e.returnValue = ''; }
+  });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushPending(); });
   function scheduleAutoUpload(){
     if (!dbx.accessToken || !dbx.autoUpload) return;
     clearTimeout(_syncTimer);
-    _syncTimer = setTimeout(() => dropboxUpload(true), 10000);
+    _syncTimer = setTimeout(() => { _syncTimer = null; dropboxUpload(true); }, 10000);
   }
   function setSyncing(on){
     _syncing += on ? 1 : -1;
@@ -3020,7 +3065,7 @@
     return d;
   }
 
-  async function dbxApplyData(d, { merge = false } = {}){
+  async function dbxApplyData(d, { merge = false, fromDropbox = false } = {}){
     const norm = (x) => {
       if (x.body === undefined) x.body = x.text || '';
       if (x.title === undefined) x.title = '';
@@ -3077,8 +3122,17 @@
     for (const f of folders) await putFolder(f);
     activeId = null;
     activeFolderId = null;
-    _lastUploadedState = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds });
-    localStorage.setItem('minote-uploaded-state', _lastUploadedState);
+    if (fromDropbox){
+      const remoteNoteTombs = new Set(remoteDeletedNotes);
+      const remoteFolderTombs = new Set(remoteDeletedFolders);
+      _lastUploadedState = JSON.stringify({
+        notes: remoteNotes.filter(n => !remoteNoteTombs.has(n.id)).map(n =>
+          n.folderId && remoteFolderTombs.has(n.folderId) ? { ...n, folderId: null } : n),
+        folders: remoteFolders.filter(f => !remoteFolderTombs.has(f.id)),
+        deletedNoteIds: remoteDeletedNotes, deletedFolderIds: remoteDeletedFolders
+      });
+      localStorage.setItem('minote-uploaded-state', _lastUploadedState);
+    }
     renderFolders(); renderIndex(); renderEditor();
     return conflicts;
   }
@@ -3102,7 +3156,7 @@
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
       toast(silent ? 'Auto-synced to Dropbox' : 'Uploaded to Dropbox');
     } catch (err) { toast('⚠ ' + err.message); }
-    finally { setSyncing(false); }
+    finally { setSyncing(false); updateSyncDirtyIndicator(); }
   }
 
   async function dropboxDownload(skipConfirm, { merge = false } = {}){
@@ -3119,17 +3173,17 @@
       const d = dbxParseBackup(await res.text());
       if (!merge){
         if (!skipConfirm && !await confirmDialog('Download from Dropbox? It will replace all your current notes and folders.', true)) return;
-        await dbxApplyData(d);
+        await dbxApplyData(d, { fromDropbox: true });
       } else {
-        const conflicts = await dbxApplyData(d, { merge: true });
+        const conflicts = await dbxApplyData(d, { merge: true, fromDropbox: true });
         if (conflicts){
           const keep = await confirmDialog(conflicts + ' note' + (conflicts === 1 ? '' : 's') + ' changed on both this device and Dropbox since the last sync. Keep the Dropbox versions? (Cancel keeps this device\u2019s versions.)', true);
-          if (keep){ await dbxApplyData(d); }
-          else { _lastUploadedState = JSON.stringify({ notes, folders, deletedNoteIds, deletedFolderIds }); localStorage.setItem('minote-uploaded-state', _lastUploadedState); }
+          if (keep){ await dbxApplyData(d, { fromDropbox: true }); }
         }
       }
       dbx.lastSync = new Date().toLocaleString(); dbx.lastSyncAt = Date.now(); dbxSave(); updateDropboxUI();
       toast(merge ? 'Merged with Dropbox' : 'Synced from Dropbox');
+      if (isSyncPending()) scheduleAutoUpload();
     } catch (err) { toast('⚠ ' + (err.message === 'bad backup format' ? "Dropbox file isn't a minote backup" : err.message)); }
   }
 
@@ -3196,14 +3250,20 @@
       root.querySelector('#dbxLastSync').textContent = dbx.lastSync ? 'last synced ' + dbx.lastSync : 'never synced';
       root.querySelector('#dbxAutoUpload').checked = !!dbx.autoUpload;
       root.querySelector('#dbxAutoSync').checked = !!dbx.autoSync;
+      root.querySelector('#dbxHideSyncBanner').checked = !!dbx.hideSyncBanner;
       st.textContent = isConnected ? 'connected' : 'not connected';
       st.classList.toggle('connected', isConnected);
     }
     const syncBtn = document.getElementById('syncBtn');
     if (syncBtn) syncBtn.style.display = isConnected ? 'inline-block' : 'none';
+    updateSyncDirtyIndicator();
   }
 
   document.getElementById('syncBtn').addEventListener('click', () => dropboxUpload(false));
+  document.getElementById('syncBannerUpload').addEventListener('click', () => dropboxUpload(false));
+  document.getElementById('syncBannerClose').addEventListener('click', () => {
+    _syncBannerDismissed = true; updateSyncDirtyIndicator();
+  });
 
   function confirmDialog(msg, danger=false){
     return new Promise(resolve => {
@@ -3283,11 +3343,17 @@
     renderIndex();
     renderEditor();
     const storedState = localStorage.getItem('minote-uploaded-state');
-    _lastUploadedState = storedState || JSON.stringify({ notes, folders });
+    if (storedState){
+      try {
+        const saved = JSON.parse(storedState);
+        _lastUploadedState = JSON.stringify({ notes: saved.notes, folders: saved.folders,
+          deletedNoteIds: saved.deletedNoteIds || [], deletedFolderIds: saved.deletedFolderIds || [] });
+      } catch (err) { _lastUploadedState = ''; }
+    } else { _lastUploadedState = dbx.accessToken ? '' : syncSnapshot(); }
     updateDropboxUI();
     dropboxHandleRedirect();
     dropboxCheckForUpdates();
-    if (dbx.accessToken && dbx.autoUpload && JSON.stringify({ notes, folders }) !== _lastUploadedState){
+    if (dbx.autoUpload && isSyncPending()){
       setTimeout(() => dropboxUpload(true), 1500);
     }
     checkVersionUpdate();
